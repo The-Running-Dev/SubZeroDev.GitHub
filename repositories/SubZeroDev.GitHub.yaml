@@ -1,0 +1,7 @@
+description: 'OpenTofu config that creates every The-Running-Dev repository with the standard settings and Main ruleset'
+visibility: public
+topics:
+  - 'opentofu'
+  - 'github'
+  - 'infrastructure-as-code'
+auto_init: false
