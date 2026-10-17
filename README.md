@@ -6,7 +6,7 @@ Every GitHub repository under `The-Running-Dev` gets the same settings and the s
 
 `modules/repository/main.tf` is the standard. In short:
 
-- Squash and rebase merges only. Auto-merge on, branches deleted on merge, update-branch button on.
+- Merge, squash and rebase merges all allowed. Auto-merge on, branches deleted on merge, update-branch button on.
 - Issues, projects, wiki and discussions on.
 - A `Main` ruleset on the default branch: no deletion, no force-push, changes only through a pull request with every review thread resolved and stale reviews dismissed on push.
 - Optional required status checks per repository.

@@ -11,7 +11,7 @@ resource "github_repository" "this" {
   has_wiki        = true
   has_discussions = true
 
-  allow_merge_commit     = false
+  allow_merge_commit     = true
   allow_squash_merge     = true
   allow_rebase_merge     = true
   allow_auto_merge       = true
@@ -47,7 +47,7 @@ resource "github_repository_ruleset" "main" {
     non_fast_forward = true
 
     pull_request {
-      allowed_merge_methods             = ["squash", "rebase"]
+      allowed_merge_methods             = ["merge", "squash", "rebase"]
       dismiss_stale_reviews_on_push     = true
       require_code_owner_review         = false
       require_last_push_approval        = false
