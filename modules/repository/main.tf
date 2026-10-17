@@ -18,10 +18,10 @@ resource "github_repository" "this" {
   allow_update_branch    = true
   delete_branch_on_merge = true
 
+  # merge_commit_title/message are left unmanaged: with merge commits disabled,
+  # GitHub resets them on every update, so setting them is a permanent diff.
   squash_merge_commit_title   = "PR_TITLE"
   squash_merge_commit_message = "COMMIT_MESSAGES"
-  merge_commit_title          = "PR_TITLE"
-  merge_commit_message        = "PR_BODY"
 
   web_commit_signoff_required = false
 

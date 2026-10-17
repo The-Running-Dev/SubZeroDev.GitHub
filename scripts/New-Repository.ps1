@@ -121,7 +121,7 @@ if ($Path) { $lines += 'auto_init: false' }
 
 # A -PlanOnly run puts the definition back the way it found it.
 $previous = if (Test-Path $definition) { Get-Content -Raw $definition } else { $null }
-Set-Content -Path $definition -Value $lines -Encoding utf8NoBOM
+Set-Content -Path $definition -Value (($lines -join "`n") + "`n") -NoNewline -Encoding utf8NoBOM
 
 try {
     Invoke-Tofu init -input=false
