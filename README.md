@@ -22,7 +22,24 @@ Every GitHub repository under `The-Running-Dev` gets the same settings and the s
 $env:TF_VAR_state_passphrase = '<your passphrase>'
 ```
 
+## Create a project
+
+One command scaffolds the project, commits it on `main`, creates the repository and pushes it:
+
+```powershell
+./scripts/New-Project.ps1 -Name SubZeroDev.Thing -Language node -Description 'Does a thing' -Topics node,tooling
+```
+
+The project goes next to this repository (`../SubZeroDev.Thing`) unless `-Path` says otherwise. It gets `src/`, `tests/`, `docs/architecture.md`, a first ADR, `.gitignore`, `.gitattributes`, `.env.example`, `README.md`, `CLAUDE.md` and `AGENTS.md` (`-Client ClaudeCode` or `-Client Codex` for one of them), plus the language starter from `scripts/starters/<language>.ps1`. `node` and `python` have starters; `csharp`, `rust`, `java` and `go` get the common files only.
+
+- `-SkipValidation` skips running the build and test commands. A failure there is reported, not fatal.
+- `-LocalOnly` stops after the commit. Publish later with `New-Repository.ps1 -Path`.
+- `-PlanOnly` scaffolds and commits, then shows the GitHub plan without applying it.
+- `-Visibility`, `-Topics` and `-RequiredCheck` are passed to `New-Repository.ps1`.
+
 ## Create a repository
+
+For a repository with no scaffold, or a project that already exists locally:
 
 ```powershell
 ./scripts/New-Repository.ps1 -Name SubZeroDev.Thing -Description 'Does a thing' -Topics powershell,tooling
