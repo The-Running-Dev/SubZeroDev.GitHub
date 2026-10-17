@@ -11,17 +11,17 @@ resource "github_repository" "this" {
   has_wiki        = true
   has_discussions = true
 
-  allow_merge_commit     = false
+  allow_merge_commit     = true
   allow_squash_merge     = true
   allow_rebase_merge     = true
   allow_auto_merge       = true
   allow_update_branch    = true
   delete_branch_on_merge = true
 
-  # merge_commit_title/message are left unmanaged: with merge commits disabled,
-  # GitHub resets them on every update, so setting them is a permanent diff.
   squash_merge_commit_title   = "PR_TITLE"
   squash_merge_commit_message = "COMMIT_MESSAGES"
+  merge_commit_title          = "PR_TITLE"
+  merge_commit_message        = "PR_BODY"
 
   web_commit_signoff_required = false
 
@@ -47,7 +47,7 @@ resource "github_repository_ruleset" "main" {
     non_fast_forward = true
 
     pull_request {
-      allowed_merge_methods             = ["squash", "rebase"]
+      allowed_merge_methods             = ["merge", "squash", "rebase"]
       dismiss_stale_reviews_on_push     = true
       require_code_owner_review         = false
       require_last_push_approval        = false
