@@ -97,3 +97,11 @@ tofu import 'module.repository["SubZeroDev.Thing"].github_repository_ruleset.mai
 ```
 
 A repository without a `Main` ruleset needs only the first import; the apply creates the ruleset.
+
+## Test
+
+```powershell
+Invoke-Pester tests
+```
+
+The scripts run against a stand-in for `tofu` and a local bare repository, so nothing touches GitHub or the real state. Tests tagged `Tofu` also run `tofu fmt`, `validate` and `tofu test` (the github provider is mocked); they skip when OpenTofu is not installed. Run only those with `Invoke-Pester tests -TagFilter Tofu`.
