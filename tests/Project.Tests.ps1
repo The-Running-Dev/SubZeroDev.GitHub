@@ -148,7 +148,7 @@ Describe 'Invoke-LanguageStarter' {
     }
 
     It 'writes the <Language> starter files' -TestCases @(
-        @{ Language = 'node'; Files = @('package.json', 'tsconfig.json', '.eslintrc.json', 'jest.config.js', '.prettierrc.json', 'src/index.js', 'tests/index.test.js') }
+        @{ Language = 'node'; Files = @('package.json', 'tsconfig.json', 'tsconfig.test.json', 'eslint.config.js', '.prettierrc.json', 'src/index.ts', 'src/greeting.ts', 'tests/index.test.ts') }
         @{ Language = 'python'; Files = @('requirements.txt', 'requirements-dev.txt', 'setup.py', 'pyproject.toml', 'pytest.ini', '.flake8', 'src/__init__.py', 'src/main.py', 'tests/__init__.py', 'tests/test_main.py') }
     ) {
         $project = New-TestFolder
