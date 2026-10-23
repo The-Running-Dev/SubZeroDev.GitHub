@@ -74,10 +74,10 @@ try {
 
         # Prove the tools detect real failures, rather than passing with no effective checks.
         $failingTest = Join-Path $project 'tests/smoke-failure.test.ts'
-        Set-Content $failingTest "import { test, expect } from 'vitest';`ntest('smoke failure', () => { expect(1).toBe(2); });" -Encoding utf8NoBOM
+        Set-Content $failingTest "import assert from 'node:assert/strict';`nimport { test } from 'node:test';`ntest('smoke failure', () => { assert.equal(1, 2); });" -Encoding utf8NoBOM
         try {
             $failureOutput = @(& $npm test 2>&1)
-            if ($LASTEXITCODE -eq 0 -or ($failureOutput -join "`n") -notmatch 'AssertionError: expected 1 to be 2') {
+            if ($LASTEXITCODE -eq 0 -or ($failureOutput -join "`n") -notmatch 'ERR_ASSERTION') {
                 $failureOutput | Out-Host
                 throw 'npm test did not reject the intentional failing assertion as expected.'
             }

@@ -23,7 +23,7 @@ $packageJson = [ordered]@{
     engines         = @{ node = '^22.13.0 || >=24.0.0' }
     scripts         = [ordered]@{
         build = 'tsc'
-        test  = 'tsc -p tsconfig.test.json && vitest run'
+        test  = 'tsc -p tsconfig.test.json && node --import tsx --test "tests/*.test.ts"'
         lint  = 'eslint . --max-warnings 0'
         start = 'node dist/index.js'
         dev   = 'tsx watch src/index.ts'
@@ -40,7 +40,6 @@ $packageJson = [ordered]@{
         'globals'           = '^16.0.0'
         'typescript-eslint' = '^8.0.0'
         'prettier'          = '^3.0.0'
-        'vitest'            = '^4.0.0'
         'tsx'               = '^4.0.0'
     }
 } | ConvertTo-Json -Depth 10
@@ -118,12 +117,13 @@ console.log(greeting('$ProjectName'));
 "@
 
 New-ProjectFile -ProjectPath $ProjectPath -RelativePath 'tests/index.test.ts' -Force -Content @'
-import { describe, expect, test } from 'vitest';
+import assert from 'node:assert/strict';
+import { describe, test } from 'node:test';
 import { greeting } from '../src/greeting.js';
 
 describe('Application', () => {
   test('welcomes the named project', () => {
-    expect(greeting('Example.Project')).toBe('Welcome to Example.Project');
+    assert.equal(greeting('Example.Project'), 'Welcome to Example.Project');
   });
 });
 '@

@@ -39,7 +39,7 @@ The project goes next to this repository (`../SubZeroDev.Thing`) unless `-Path` 
 
 The Node starter requires Node.js 22.13+ on the 22.x line, or Node.js 24+. After `npm install`, run
 `npm run build`, `npm test`, `npm run lint`, then `npm start`. TypeScript source
-builds to `dist/`; startup runs that compiled output. Tests use Vitest and lint
+builds to `dist/`; startup runs that compiled output. Tests use Node's test runner with tsx and lint
 uses ESLint 10 with a TypeScript flat config. `npm run dev` watches the source with tsx.
 
 ## Create a repository
