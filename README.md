@@ -59,6 +59,20 @@ Required status checks take `context` or `context@integration_id` (15368 is GitH
 
 Add `-PlanOnly` to see the plan without applying anything. The script refuses any plan that destroys or replaces a resource unless `-Force` is given.
 
+For automation authorized to create only the named repository, pass `-TargetScoped`
+to both the preview and the publishing invocation. Each exact saved plan is checked
+immediately before apply: creation must create only the named repository and its
+`Main` ruleset; after pushing `main`, activation may only update that ruleset's
+enforcement from `disabled` to `active`, with every other attribute unchanged and
+known. Unrelated no-ops are allowed. Imports, moves, other creates or updates,
+deletions and replacements are refused, even with `-Force`. A preview does not
+authorize a later plan. Without `-TargetScoped`, the existing whole-configuration
+behavior is unchanged.
+
+If scoped publishing stops, its error reports the completed apply/push stages and
+the retained definition path. A failed apply can be partial; verify remote state
+before retrying. The script does not roll back a created repository or a push.
+
 ## Change a repository
 
 Each repository is `repositories/<name>.yaml`. Every key is optional:

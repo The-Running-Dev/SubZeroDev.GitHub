@@ -63,8 +63,9 @@ function Install-TofuMock {
     .DESCRIPTION
     Every call is recorded with its subcommand, arguments, and the bootstrap variable
     at that moment. `show` returns ResourceChanges as plan JSON; `output` returns
-    CloneUrl as the http_clone_url of RepositoryName. ExitCodes maps a subcommand to
-    the exit code it should fail with.
+    CloneUrl as the http_clone_url of RepositoryName. Plans optionally queues distinct
+    resource_changes arrays; each plan saves its JSON under its -out path, so show and
+    apply record the exact saved plan. ExitCodes maps a subcommand to its failure code.
     #>
     param(
         [string]$RepositoryName = '',
@@ -74,6 +75,8 @@ function Install-TofuMock {
     $global:TofuMock = [pscustomobject]@{
         Calls           = [System.Collections.Generic.List[object]]::new()
         ResourceChanges = @()
+        Plans           = [System.Collections.Generic.Queue[object]]::new()
+        SavedPlans      = @{}
         ExitCodes       = @{}
         RepositoryName  = $RepositoryName
         CloneUrl        = $CloneUrl
@@ -82,16 +85,29 @@ function Install-TofuMock {
     function global:tofu {
         $mock = $global:TofuMock
         $command = @($args | Where-Object { $_ -notlike '-chdir=*' })[0]
+        $planPath = if ($command -eq 'plan') {
+            (@($args | Where-Object { $_ -like '-out=*' })[0] -replace '^-out=', '')
+        }
+        elseif ($command -in @('show', 'apply')) { $args[-1] }
+        else { $null }
         $mock.Calls.Add([pscustomobject]@{
                 Command   = $command
                 Arguments = @($args)
                 Bootstrap = $env:TF_VAR_bootstrap_repositories
+                PlanPath  = $planPath
+                PlanJson  = if ($planPath -and $mock.SavedPlans.ContainsKey($planPath)) { $mock.SavedPlans[$planPath] } else { $null }
             })
 
         $exitCode = if ($mock.ExitCodes.ContainsKey($command)) { $mock.ExitCodes[$command] } else { 0 }
         if ($exitCode -eq 0) {
             switch ($command) {
-                'show' { @{ resource_changes = @($mock.ResourceChanges) } | ConvertTo-Json -Depth 10 }
+                'plan' {
+                    $changes = if ($mock.Plans.Count) { $mock.Plans.Dequeue() } else { $mock.ResourceChanges }
+                    $json = @{ resource_changes = @($changes) } | ConvertTo-Json -Depth 100
+                    $mock.SavedPlans[$planPath] = $json
+                    Set-Content -Path $planPath -Value $json -NoNewline
+                }
+                'show' { Get-Content -Raw $planPath }
                 'output' { @{ $mock.RepositoryName = @{ http_clone_url = $mock.CloneUrl } } | ConvertTo-Json -Depth 5 }
             }
         }

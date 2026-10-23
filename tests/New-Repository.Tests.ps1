@@ -270,4 +270,184 @@ Describe 'New-Repository.ps1' {
             $env:TF_VAR_bootstrap_repositories | Should -BeNullOrEmpty
         }
     }
+
+    Describe 'Opt-in target-scoped publishing' {
+        BeforeAll {
+            function New-CreationPlan([string] $Enforcement = 'disabled') {
+                @(
+                    @{ address = 'module.repository["Example.Repository"].github_repository.this'; mode = 'managed'
+                        change = @{ actions = @('create'); before = $null; after = @{ name = 'Example.Repository' } } }
+                    @{ address = 'module.repository["Example.Repository"].github_repository_ruleset.main'; mode = 'managed'
+                        change = @{ actions = @('create'); before = $null
+                            after = @{ name = 'Main'; repository = 'Example.Repository'; target = 'branch'; enforcement = $Enforcement } } }
+                )
+            }
+
+            function New-ActivationPlan {
+                $before = @{ id = '123'; name = 'Main'; repository = 'Example.Repository'; target = 'branch'
+                    enforcement = 'disabled'; rules = @(@{ deletion = $true; non_fast_forward = $true }) }
+                # Deliberately different object-key order; object ordering is not a mutation.
+                $after = [ordered]@{ rules = @(@{ non_fast_forward = $true; deletion = $true })
+                    enforcement = 'active'; target = 'branch'; repository = 'Example.Repository'; name = 'Main'; id = '123' }
+                @(@{ address = 'module.repository["Example.Repository"].github_repository_ruleset.main'; mode = 'managed'
+                    change = @{ actions = @('update'); before = $before; after = $after
+                        after_unknown = @{ id = $false; rules = @(@{ deletion = $false }) } } })
+            }
+        }
+
+        BeforeEach {
+            $local = Join-Path $workspace 'local'
+            $remote = Join-Path $workspace 'remote.git'
+            New-TestGitRepository -Path $local -Commit
+            New-TestGitRepository -Path $remote -Bare
+            $mock.CloneUrl = $remote
+        }
+
+        It 'checks and applies each saved plan, with only enforcement changing after the push' {
+            $mock.Plans.Enqueue(@(New-CreationPlan))
+            $mock.Plans.Enqueue(@(New-ActivationPlan))
+
+            Invoke-NewRepository @{ Name = 'Example.Repository'; Path = $local; TargetScoped = $true }
+
+            Get-TofuCommand | Should -Be @('init', 'plan', 'show', 'apply', 'output', 'plan', 'show', 'apply')
+            $shows = @($mock.Calls | Where-Object Command -EQ show)
+            $applies = @($mock.Calls | Where-Object Command -EQ apply)
+            foreach ($i in 0..1) {
+                $shows[$i].PlanPath | Should -BeExactly $applies[$i].PlanPath
+                $shows[$i].PlanJson | Should -BeExactly $applies[$i].PlanJson
+                $applies[$i].Arguments[-1] | Should -BeExactly (Join-Path $root 'new-repository.tfplan')
+            }
+            git -C $remote rev-parse refs/heads/main | Should -BeExactly (git -C $local rev-parse HEAD)
+            $env:TF_VAR_bootstrap_repositories | Should -BeNullOrEmpty
+            Join-Path $root 'new-repository.tfplan' | Should -Not -Exist
+        }
+
+        It 'supports creation without -Path, with an active ruleset' {
+            $mock.Plans.Enqueue(@(New-CreationPlan -Enforcement active))
+            Invoke-NewRepository @{ Name = 'Example.Repository'; TargetScoped = $true }
+            @(Get-TofuCommand | Where-Object { $_ -eq 'apply' }).Count | Should -Be 1
+        }
+
+        It 'allows unrelated no-ops' {
+            $changes = @(New-CreationPlan) + @(@{ address = 'module.repository["Other"].github_repository.this'
+                change = @{ actions = @('no-op') } })
+            $mock.Plans.Enqueue($changes)
+            Invoke-NewRepository @{ Name = 'Example.Repository'; Path = $local; TargetScoped = $true; PlanOnly = $true }
+            Get-TofuCommand | Should -Not -Contain apply
+            Join-Path $root 'repositories/Example.Repository.yaml' | Should -Not -Exist
+        }
+
+        It 'rejects an unrelated <Action> introduced after a clean preview in the <Phase> plan' -TestCases @(
+            @{ Action = 'create'; Phase = 'Create'; ApplyCount = 0 }
+            @{ Action = 'update'; Phase = 'Create'; ApplyCount = 0 }
+            @{ Action = 'create'; Phase = 'Activate'; ApplyCount = 1 }
+            @{ Action = 'update'; Phase = 'Activate'; ApplyCount = 1 }
+        ) {
+            $mock.Plans.Enqueue(@(New-CreationPlan))
+            Invoke-NewRepository @{ Name = 'Example.Repository'; Path = $local; TargetScoped = $true; PlanOnly = $true }
+            git -C $local remote | Should -BeNullOrEmpty
+            Join-Path $root 'repositories/Example.Repository.yaml' | Should -Not -Exist
+
+            $outside = @{ address = 'module.repository["Other"].github_repository.this'; mode = 'managed'
+                change = @{ actions = @($Action) } }
+            if ($Phase -eq 'Create') { $mock.Plans.Enqueue(@(New-CreationPlan) + @($outside)) }
+            else {
+                $mock.Plans.Enqueue(@(New-CreationPlan))
+                $mock.Plans.Enqueue(@(New-ActivationPlan) + @($outside))
+            }
+            $failure = $null
+            try { Invoke-NewRepository @{ Name = 'Example.Repository'; Path = $local; TargetScoped = $true } }
+            catch { $failure = $_.Exception.Message }
+
+            $failure | Should -Not -BeNullOrEmpty
+            $failure | Should -Match "Target-scoped $Phase plan refuses change at"
+            $failure | Should -Match 'module.repository\["Other"\].github_repository.this'
+            @(Get-TofuCommand | Where-Object { $_ -eq 'apply' }).Count | Should -Be $ApplyCount
+            $shows = @($mock.Calls | Where-Object Command -EQ show)
+            $applies = @($mock.Calls | Where-Object Command -EQ apply)
+            @($applies | Where-Object PlanJson -EQ $shows[-1].PlanJson).Count | Should -Be 0
+            if ($Phase -eq 'Create') {
+                $failure | Should -Match 'No apply ran'
+                git -C $local remote | Should -BeNullOrEmpty
+                git -C $remote show-ref --heads | Should -BeNullOrEmpty
+            }
+            else {
+                $failure | Should -Match 'Creation apply and main push completed; ruleset activation did not complete'
+                git -C $local remote get-url origin | Should -BeExactly $remote
+                git -C $remote rev-parse refs/heads/main | Should -BeExactly (git -C $local rev-parse HEAD)
+            }
+            $failure | Should -Match 'Definition retained at'
+            $failure | Should -Not -Match 'pester-token|pester-passphrase'
+            Join-Path $root 'repositories/Example.Repository.yaml' | Should -Exist
+            Join-Path $root 'new-repository.tfplan' | Should -Not -Exist
+            $env:TF_VAR_bootstrap_repositories | Should -BeNullOrEmpty
+        }
+
+        It 'rejects an unexpected creation transition: <Mutation>' -TestCases @(
+            @{ Mutation = 'target update' }, @{ Mutation = 'extra target resource' }
+            @{ Mutation = 'prefix sibling' }, @{ Mutation = 'case sibling' }
+            @{ Mutation = 'wrong repository name' }, @{ Mutation = 'active bootstrap' }
+            @{ Mutation = 'missing ruleset' }, @{ Mutation = 'import' }, @{ Mutation = 'move' }
+        ) {
+            $changes = @(New-CreationPlan)
+            switch ($Mutation) {
+                'target update' { $changes[0].change.actions = @('update') }
+                'extra target resource' { $changes += @{ address = 'module.repository["Example.Repository"].github_branch.extra'; mode = 'managed'; change = @{ actions = @('create') } } }
+                'prefix sibling' { $changes[0].address = 'module.repository["Example.Repository-extra"].github_repository.this' }
+                'case sibling' { $changes[0].address = 'module.repository["example.repository"].github_repository.this' }
+                'wrong repository name' { $changes[0].change.after.name = 'Other' }
+                'active bootstrap' { $changes[1].change.after.enforcement = 'active' }
+                'missing ruleset' { $changes = @($changes[0]) }
+                'import' { $changes += @{ address = 'outside'; change = @{ actions = @('no-op'); importing = @{ id = '1' } } } }
+                'move' { $changes[0].previous_address = 'outside' }
+            }
+            $mock.Plans.Enqueue($changes)
+            { Invoke-NewRepository @{ Name = 'Example.Repository'; Path = $local; TargetScoped = $true } } | Should -Throw '*Target-scoped*'
+            Get-TofuCommand | Should -Not -Contain apply
+        }
+
+        It 'rejects an unexpected activation transition: <Mutation>' -TestCases @(
+            @{ Mutation = 'repository update' }, @{ Mutation = 'ruleset create' }
+            @{ Mutation = 'ruleset rename' }, @{ Mutation = 'rules change' }
+            @{ Mutation = 'unknown attribute' }, @{ Mutation = 'new attribute' }
+            @{ Mutation = 'already active' }, @{ Mutation = 'missing transition' }
+        ) {
+            $changes = @(New-ActivationPlan)
+            switch ($Mutation) {
+                'repository update' { $changes += @{ address = 'module.repository["Example.Repository"].github_repository.this'; mode = 'managed'; change = @{ actions = @('update') } } }
+                'ruleset create' { $changes[0].change.actions = @('create') }
+                'ruleset rename' { $changes[0].change.after.name = 'Other' }
+                'rules change' { $changes[0].change.after.rules[0].deletion = $false }
+                'unknown attribute' { $changes[0].change.after_unknown.rules[0].deletion = $true }
+                'new attribute' { $changes[0].change.after['extra'] = 'unexpected' }
+                'already active' { $changes[0].change.before.enforcement = 'active' }
+                'missing transition' { $changes[0].change.actions = @('no-op') }
+            }
+            $mock.Plans.Enqueue(@(New-CreationPlan))
+            $mock.Plans.Enqueue($changes)
+            { Invoke-NewRepository @{ Name = 'Example.Repository'; Path = $local; TargetScoped = $true } } | Should -Throw '*Target-scoped*'
+            @(Get-TofuCommand | Where-Object { $_ -eq 'apply' }).Count | Should -Be 1
+        }
+
+        It 'preserves destruction safeguards, including when -Force is combined with the scope guard' -TestCases @(
+            @{ Actions = @('delete'); Force = $false }, @{ Actions = @('delete', 'create'); Force = $false }
+            @{ Actions = @('delete'); Force = $true }, @{ Actions = @('delete', 'create'); Force = $true }
+        ) {
+            $changes = @(New-CreationPlan)
+            $changes[0].change.actions = $Actions
+            $mock.Plans.Enqueue($changes)
+            { Invoke-NewRepository @{ Name = 'Example.Repository'; Path = $local; TargetScoped = $true; Force = $Force } } | Should -Throw
+            Get-TofuCommand | Should -Not -Contain apply
+        }
+
+        It 'reports an apply failure as potentially partial, retaining the definition' {
+            $mock.Plans.Enqueue(@(New-CreationPlan))
+            $mock.ExitCodes['apply'] = 1
+            { Invoke-NewRepository @{ Name = 'Example.Repository'; Path = $local; TargetScoped = $true } } |
+                Should -Throw '*Creation apply did not complete and may have partially changed remote resources*'
+            Join-Path $root 'repositories/Example.Repository.yaml' | Should -Exist
+            git -C $local remote | Should -BeNullOrEmpty
+        }
+    }
+
 }
