@@ -18,25 +18,29 @@ $packageJson = [ordered]@{
     name            = $projectNameKebab
     version         = '0.1.0'
     description     = $ProjectName
-    main            = 'src/index.js'
+    main            = 'dist/index.js'
     type            = 'module'
+    engines         = @{ node = '^22.13.0 || >=24.0.0' }
     scripts         = [ordered]@{
         build = 'tsc'
-        test  = 'jest'
-        lint  = 'eslint src/ --fix'
-        start = 'node src/index.js'
-        dev   = 'nodemon src/index.js'
+        test  = 'tsc -p tsconfig.test.json && node --import tsx --test "tests/*.test.ts"'
+        lint  = 'eslint . --max-warnings 0'
+        start = 'node dist/index.js'
+        dev   = 'tsx watch src/index.ts'
     }
     keywords        = @('project', 'typescript')
     author          = ''
     license         = 'MIT'
     dependencies    = [ordered]@{}
     devDependencies = [ordered]@{
-        '@types/node' = '^20.0.0'
-        'typescript'  = '^5.0.0'
-        'eslint'      = '^8.0.0'
-        'prettier'    = '^3.0.0'
-        'jest'        = '^29.0.0'
+        '@types/node'       = '^22.0.0'
+        'typescript'        = '^5.9.0'
+        '@eslint/js'        = '^10.0.0'
+        'eslint'            = '^10.0.0'
+        'globals'           = '^16.0.0'
+        'typescript-eslint' = '^8.0.0'
+        'prettier'          = '^3.0.0'
+        'tsx'               = '^4.0.0'
     }
 } | ConvertTo-Json -Depth 10
 
@@ -45,53 +49,49 @@ New-ProjectFile -ProjectPath $ProjectPath -RelativePath 'package.json' -Content 
 New-ProjectFile -ProjectPath $ProjectPath -RelativePath 'tsconfig.json' -Force -Content @'
 {
   "compilerOptions": {
-    "target": "ES2020",
-    "module": "ESNext",
-    "lib": ["ES2020"],
+    "target": "ES2022",
+    "module": "NodeNext",
+    "lib": ["ES2022"],
     "outDir": "./dist",
     "rootDir": "./src",
     "declaration": true,
+    "noEmitOnError": true,
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "noImplicitAny": true,
-    "moduleResolution": "node"
+    "moduleResolution": "NodeNext"
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "tests"]
 }
 '@
 
-New-ProjectFile -ProjectPath $ProjectPath -RelativePath '.eslintrc.json' -Force -Content @'
+New-ProjectFile -ProjectPath $ProjectPath -RelativePath 'tsconfig.test.json' -Force -Content @'
 {
-  "env": {
-    "node": true,
-    "es2020": true
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true
   },
-  "extends": ["eslint:recommended"],
-  "parserOptions": {
-    "ecmaVersion": 2020,
-    "sourceType": "module"
-  },
-  "rules": {
-    "indent": ["error", 2],
-    "linebreak-style": ["error", "unix"],
-    "quotes": ["error", "single"],
-    "semi": ["error", "always"],
-    "no-unused-vars": ["warn"]
-  }
+  "include": ["src/**/*.ts", "tests/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
 }
 '@
 
-New-ProjectFile -ProjectPath $ProjectPath -RelativePath 'jest.config.js' -Force -Content @'
-export default {
-  testEnvironment: 'node',
-  testMatch: ['**/__tests__/**/*.test.js', '**/?(*.)+(spec|test).js'],
-  collectCoverageFrom: ['src/**/*.js'],
-  coveragePathIgnorePatterns: ['/node_modules/'],
-};
+New-ProjectFile -ProjectPath $ProjectPath -RelativePath 'eslint.config.js' -Force -Content @'
+import js from '@eslint/js';
+import globals from 'globals';
+import tseslint from 'typescript-eslint';
+
+export default tseslint.config(
+  { ignores: ['dist/**', 'coverage/**'] },
+  js.configs.recommended,
+  ...tseslint.configs.recommended,
+  { languageOptions: { globals: globals.node } },
+);
 '@
 
 New-ProjectFile -ProjectPath $ProjectPath -RelativePath '.prettierrc.json' -Force -Content @'
@@ -104,18 +104,26 @@ New-ProjectFile -ProjectPath $ProjectPath -RelativePath '.prettierrc.json' -Forc
 }
 '@
 
-New-ProjectFile -ProjectPath $ProjectPath -RelativePath 'src/index.js' -Force -Content @"
-/**
- * Main application entry point
- */
+New-ProjectFile -ProjectPath $ProjectPath -RelativePath 'src/greeting.ts' -Force -Content @'
+export function greeting(name: string): string {
+  return `Welcome to ${name}`;
+}
+'@
 
-console.log('Welcome to $ProjectName');
+New-ProjectFile -ProjectPath $ProjectPath -RelativePath 'src/index.ts' -Force -Content @"
+import { greeting } from './greeting.js';
+
+console.log(greeting('$ProjectName'));
 "@
 
-New-ProjectFile -ProjectPath $ProjectPath -RelativePath 'tests/index.test.js' -Force -Content @'
+New-ProjectFile -ProjectPath $ProjectPath -RelativePath 'tests/index.test.ts' -Force -Content @'
+import assert from 'node:assert/strict';
+import { describe, test } from 'node:test';
+import { greeting } from '../src/greeting.js';
+
 describe('Application', () => {
-  test('should exist', () => {
-    expect(true).toBe(true);
+  test('welcomes the named project', () => {
+    assert.equal(greeting('Example.Project'), 'Welcome to Example.Project');
   });
 });
 '@

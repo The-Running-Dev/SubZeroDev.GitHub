@@ -48,7 +48,7 @@ Describe 'Add-ProjectLanguage.ps1 on a project created without a language' {
         $output = Add-Language node
 
         Join-Path $project 'package.json' | Should -Exist
-        Join-Path $project 'src/index.js' | Should -Exist
+        Join-Path $project 'src/index.ts' | Should -Exist
         foreach ($file in 'README.md', 'CLAUDE.md', 'AGENTS.md') {
             $content = Get-Content -Raw (Join-Path $project $file)
             $content | Should -Match ([regex]::Escape('npm test')) -Because $file

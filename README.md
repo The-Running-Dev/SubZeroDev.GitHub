@@ -37,6 +37,11 @@ The project goes next to this repository (`../SubZeroDev.Thing`) unless `-Path` 
 - `-PlanOnly` scaffolds and commits, then shows the GitHub plan without applying it.
 - `-Visibility`, `-Topics` and `-RequiredCheck` are passed to `New-Repository.ps1`.
 
+The Node starter requires Node.js 22.13+ on the 22.x line, or Node.js 24+. After `npm install`, run
+`npm run build`, `npm test`, `npm run lint`, then `npm start`. TypeScript source
+builds to `dist/`; startup runs that compiled output. Tests use Node's test runner with tsx and lint
+uses ESLint 10 with a TypeScript flat config. `npm run dev` watches the source with tsx.
+
 ### Without a language
 
 `-Language` is optional. Leave it out while the implementation language is still undecided:
@@ -137,3 +142,16 @@ Invoke-Pester tests
 ```
 
 The scripts run against a stand-in for `tofu` and a local bare repository, so nothing touches GitHub or the real state. Tests tagged `Tofu` also run `tofu fmt`, `validate` and `tofu test` (the github provider is mocked); they skip when OpenTofu is not installed. Run only those with `Invoke-Pester tests -TagFilter Tofu`.
+
+Run the real Node toolchain smoke test separately (requires Git, Node.js 22.13+ on 22.x or 24+
+and npm registry access, but no Pester, GitHub credentials or OpenTofu):
+
+```powershell
+./tests/Invoke-NodeSmokeTest.ps1
+```
+
+It scaffolds with `-LocalOnly` into a temporary workspace, installs dependencies,
+builds, tests and lints, then starts the compiled application with the source
+directory removed. It also verifies that a failing assertion and a TypeScript
+lint violation are rejected. The workspace is
+deleted even if a check fails. CI runs it on Ubuntu and Windows with Node 22 and 24.

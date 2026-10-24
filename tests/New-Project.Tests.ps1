@@ -78,10 +78,12 @@ Describe 'New-Project.ps1 -LocalOnly' {
     }
 
     It 'writes only <Expected> for -Client <Client>' -TestCases @(
-        @{ Client = 'ClaudeCode'; Expected = 'CLAUDE.md'; Absent = 'AGENTS.md' }
-        @{ Client = 'Codex'; Expected = 'AGENTS.md'; Absent = 'CLAUDE.md' }
+        @{ Client = 'ClaudeCode'; Expected = 'CLAUDE.md'; Absent = 'AGENTS.md'; Language = 'go' }
+        @{ Client = 'Codex'; Expected = 'AGENTS.md'; Absent = 'CLAUDE.md'; Language = 'go' }
+        @{ Client = 'ClaudeCode'; Expected = 'CLAUDE.md'; Absent = 'AGENTS.md'; Language = 'node' }
+        @{ Client = 'Codex'; Expected = 'AGENTS.md'; Absent = 'CLAUDE.md'; Language = 'node' }
     ) {
-        Invoke-NewProject @{ Name = 'Example.Project'; Language = 'go'; Path = $project; Client = $Client; LocalOnly = $true; SkipValidation = $true }
+        Invoke-NewProject @{ Name = 'Example.Project'; Language = $Language; Path = $project; Client = $Client; LocalOnly = $true; SkipValidation = $true }
 
         Join-Path $project $Expected | Should -Exist
         Join-Path $project $Absent | Should -Not -Exist
@@ -107,8 +109,8 @@ Describe 'New-Project.ps1 without -Language' {
         $everyCommand = foreach ($language in 'node', 'python', 'csharp', 'rust', 'java', 'go') {
             (Get-LanguageCommands -Language $language).Values
         }
-        $starterFiles = 'package.json', 'tsconfig.json', 'jest.config.js', 'requirements.txt', 'setup.py', 'pyproject.toml',
-            'src/index.js', 'src/main.py', 'tests/index.test.js', 'tests/test_main.py'
+        $starterFiles = 'package.json', 'tsconfig.json', 'eslint.config.js', 'requirements.txt', 'setup.py', 'pyproject.toml',
+            'src/index.ts', 'src/main.py', 'tests/index.test.ts', 'tests/test_main.py'
     }
 
     BeforeEach {
