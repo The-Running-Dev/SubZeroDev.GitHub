@@ -7,6 +7,10 @@
        .env.example, README.md, docs/architecture.md, the first ADR, CLAUDE.md and/or
        AGENTS.md, and the language starter (scripts/starters/<Language>.ps1).
     2. Optionally runs the build and test commands and reports the result.
+
+    Without -Language the implementation language stays undecided: the common files are
+    written without any commands, and no starter or validation runs. Add the language
+    later with Add-ProjectLanguage.ps1.
     3. Initializes git on main and commits the scaffold.
     4. Runs New-Repository.ps1 -Path, which creates the repository with the standard
        settings, pushes main, and switches the Main ruleset on.
@@ -20,6 +24,9 @@
 
 .EXAMPLE
     ./scripts/New-Project.ps1 -Name SubZeroDev.Thing -Language python -LocalOnly
+
+.EXAMPLE
+    ./scripts/New-Project.ps1 -Name SubZeroDev.Thing -LocalOnly
 #>
 [CmdletBinding()]
 param(
@@ -27,7 +34,7 @@ param(
     [ValidatePattern('^[A-Za-z0-9._-]+$')]
     [string] $Name,
 
-    [Parameter(Mandatory)]
+    # Omit to defer the choice; Add-ProjectLanguage.ps1 applies it later.
     [ValidateSet('node', 'python', 'csharp', 'rust', 'java', 'go')]
     [string] $Language,
 
@@ -68,15 +75,7 @@ Set-StrictMode -Version Latest
 $root = Split-Path -Parent $PSScriptRoot
 Import-Module (Join-Path $PSScriptRoot 'modules/Project.psm1') -Force
 
-$languageCommands = @{
-    node   = @{ install = 'npm install'; build = 'npm run build'; test = 'npm test'; lint = 'npm run lint'; run = 'npm start' }
-    python = @{ install = 'pip install -r requirements.txt'; build = 'python setup.py build'; test = 'pytest'; lint = 'pylint src/'; run = 'python -m src.main' }
-    csharp = @{ install = 'dotnet restore'; build = 'dotnet build'; test = 'dotnet test'; lint = 'dotnet format --verify-no-changes'; run = 'dotnet run' }
-    rust   = @{ install = 'cargo fetch'; build = 'cargo build --release'; test = 'cargo test'; lint = 'cargo clippy'; run = 'cargo run --release' }
-    java   = @{ install = 'mvn install'; build = 'mvn clean package'; test = 'mvn test'; lint = 'mvn checkstyle:check'; run = 'java -jar target/app.jar' }
-    go     = @{ install = 'go mod download'; build = 'go build -o bin/app'; test = 'go test ./...'; lint = 'golangci-lint run'; run = 'go run main.go' }
-}
-$commands = $languageCommands[$Language]
+$commands = if ($Language) { Get-LanguageCommands -Language $Language } else { $null }
 
 # Everything that can stop the run is checked before anything is written.
 Assert-CommandAvailable -Name 'git' -InstallHint 'Install Git and make sure it is on PATH.'
@@ -95,7 +94,7 @@ if (-not $LocalOnly) {
     }
 }
 
-Write-Step "Scaffolding $Name ($Language) in $Path"
+Write-Step "Scaffolding $Name ($(if ($Language) { $Language } else { 'language deferred' })) in $Path"
 $null = New-Item -ItemType Directory -Path $Path
 New-ProjectStructure -ProjectPath $Path
 New-Gitignore -ProjectPath $Path -Language $Language
@@ -110,13 +109,16 @@ Write-Success 'Common files written'
 
 Initialize-ProjectGit -ProjectPath $Path -UserName $GitUserName -UserEmail $GitUserEmail
 
-if (-not $SkipLanguageStarter) {
+if (-not $Language) {
+    Write-WarningMessage "Implementation language deferred: no starter, no commands, and no build or test validation. Add it later with: ./scripts/Add-ProjectLanguage.ps1 -Path '$Path' -Language <language>"
+}
+elseif (-not $SkipLanguageStarter) {
     if (-not (Invoke-LanguageStarter -Language $Language -ProjectPath $Path -ProjectName $Name)) {
         Write-WarningMessage "There is no $Language starter yet; only the common files were written."
     }
 }
 
-if (-not $SkipValidation) {
+if ($Language -and -not $SkipValidation) {
     if ((Test-ProjectCommand -ProjectPath $Path -Command $commands.build) -and
         (Test-ProjectCommand -ProjectPath $Path -Command $commands.test)) {
         Write-Success 'Build and tests passed'
