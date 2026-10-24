@@ -145,15 +145,27 @@ cache/
 .cache/
 '@
 
-    switch ($Language) {
-        'python' { $content += "`n# Python specific`nvenv/`n*.pyc`n.pytest_cache/`ndist/`nbuild/" }
-        'node' { $content += "`n# Node specific`nnode_modules/`n.npm/`n.next/`nout/" }
-        'csharp' { $content += "`n# C# specific`nbin/`nobj/`n*.user`n.vs/" }
-        'java' { $content += "`n# Java specific`ntarget/`n.gradle/`nbuild/" }
-        'rust' { $content += "`n# Rust specific`ntarget/`nCargo.lock" }
-    }
+    $section = Get-GitignoreLanguageSection -Language $Language
+    if ($section) { $content += "`n$section" }
 
     New-ProjectFile -ProjectPath $ProjectPath -RelativePath '.gitignore' -Content $content -Force
+}
+
+function Get-GitignoreLanguageSection {
+    <#
+    .SYNOPSIS
+    The language's own .gitignore lines, headed by a comment; empty when it has none.
+    #>
+    param([Parameter()][string]$Language = 'generic')
+
+    switch ($Language) {
+        'python' { "# Python specific`nvenv/`n*.pyc`n.pytest_cache/`ndist/`nbuild/" }
+        'node' { "# Node specific`nnode_modules/`n.npm/`n.next/`nout/" }
+        'csharp' { "# C# specific`nbin/`nobj/`n*.user`n.vs/" }
+        'java' { "# Java specific`ntarget/`n.gradle/`nbuild/" }
+        'rust' { "# Rust specific`ntarget/`nCargo.lock" }
+        default { '' }
+    }
 }
 
 function New-Gitattributes {
@@ -192,41 +204,56 @@ LOG_LEVEL=info
     New-ProjectFile -ProjectPath $ProjectPath -RelativePath '.env.example' -Content $content -Force
 }
 
-function New-ReadmeFile {
+function Get-LanguageCommands {
+    <#
+    .SYNOPSIS
+    The install, build, test, lint and run commands of a language.
+    #>
     param(
-        [Parameter(Mandatory)][string]$ProjectPath,
-        [Parameter(Mandatory)][string]$ProjectName,
-        [Parameter(Mandatory)][hashtable]$Commands
+        [Parameter(Mandatory)]
+        [ValidateSet('node', 'python', 'csharp', 'rust', 'java', 'go')]
+        [string]$Language
+    )
+
+    switch ($Language) {
+        'node' { @{ install = 'npm install'; build = 'npm run build'; test = 'npm test'; lint = 'npm run lint'; run = 'npm start' } }
+        'python' { @{ install = 'pip install -r requirements.txt'; build = 'python setup.py build'; test = 'pytest'; lint = 'pylint src/'; run = 'python -m src.main' } }
+        'csharp' { @{ install = 'dotnet restore'; build = 'dotnet build'; test = 'dotnet test'; lint = 'dotnet format --verify-no-changes'; run = 'dotnet run' } }
+        'rust' { @{ install = 'cargo fetch'; build = 'cargo build --release'; test = 'cargo test'; lint = 'cargo clippy'; run = 'cargo run --release' } }
+        'java' { @{ install = 'mvn install'; build = 'mvn clean package'; test = 'mvn test'; lint = 'mvn checkstyle:check'; run = 'java -jar target/app.jar' } }
+        'go' { @{ install = 'go mod download'; build = 'go build -o bin/app'; test = 'go test ./...'; lint = 'golangci-lint run'; run = 'go run main.go' } }
+    }
+}
+
+# README.md, CLAUDE.md and AGENTS.md hold their commands between these markers, so
+# Add-ProjectLanguage.ps1 can tell the generated section from anything a person wrote.
+$script:CommandsBegin = '<!-- BEGIN project-commands -->'
+$script:CommandsEnd = '<!-- END project-commands -->'
+
+function Get-CommandsSection {
+    <#
+    .SYNOPSIS
+    The marked commands section of README.md (-Style Readme) or of an instructions file.
+
+    .DESCRIPTION
+    Without -Commands the implementation language is undecided, and the section says so
+    instead of listing commands nobody has chosen yet.
+    #>
+    param(
+        [Parameter(Mandatory)][ValidateSet('Readme', 'Instructions')][string]$Style,
+        [Parameter()][string]$Heading = 'Commands',
+        [Parameter()][hashtable]$Commands
     )
 
     $fence = '```'
-    $content = @"
-# $ProjectName
+    $body = if ($Style -eq 'Readme') {
+        if ($Commands) {
+            @"
+## Install
 
-Brief description of what this project does and its main purpose.
-
-## Prerequisites
-
-- [List required tools, frameworks, and versions]
-
-## Local Setup
-
-1. **Clone the repository**
-   ${fence}bash
-   git clone <repository-url>
-   cd $ProjectName
-   $fence
-
-2. **Install dependencies**
-   ${fence}bash
-   $($Commands.install)
-   $fence
-
-3. **Configure environment**
-   ${fence}bash
-   cp .env.example .env
-   # Edit .env and add your configuration
-   $fence
+${fence}bash
+$($Commands.install)
+$fence
 
 ## Build
 
@@ -251,6 +278,110 @@ $fence
 ${fence}bash
 $($Commands.run)
 $fence
+"@
+        }
+        else {
+            @'
+## Implementation Stack
+
+Not selected yet. Install, build, test, lint and run commands are added here when the implementation language is chosen.
+'@
+        }
+    }
+    elseif ($Commands) {
+        @"
+## $Heading
+
+- **Install:** ``$($Commands.install)``
+- **Build:** ``$($Commands.build)``
+- **Test:** ``$($Commands.test)``
+- **Lint/Format:** ``$($Commands.lint)``
+- **Run locally:** ``$($Commands.run)``
+"@
+    }
+    else {
+        @"
+## $Heading
+
+The implementation language has not been selected yet, so this project has no install, build, test, lint or run commands. Do not guess or invent them; they are added here when the language is chosen.
+"@
+    }
+
+    "$script:CommandsBegin`n$($body.Trim() -replace "`r`n", "`n")`n$script:CommandsEnd"
+}
+
+function Update-CommandsSection {
+    <#
+    .SYNOPSIS
+    Replaces a file's undecided commands section with the given commands.
+
+    .DESCRIPTION
+    Returns Missing when the file does not exist, Unchanged when it already lists these
+    commands, Ready when its section is still the undecided one, and Conflict otherwise:
+    no markers, or a section someone edited. Only -Apply writes, and only for Ready.
+    #>
+    param(
+        [Parameter(Mandatory)][string]$ProjectPath,
+        [Parameter(Mandatory)][string]$RelativePath,
+        [Parameter(Mandatory)][ValidateSet('Readme', 'Instructions')][string]$Style,
+        [Parameter()][string]$Heading = 'Commands',
+        [Parameter(Mandatory)][hashtable]$Commands,
+        [Parameter()][switch]$Apply
+    )
+
+    $fullPath = Join-Path $ProjectPath $RelativePath
+    if (-not (Test-Path $fullPath)) { return 'Missing' }
+
+    $content = [IO.File]::ReadAllText($fullPath) -replace "`r`n", "`n"
+    $pattern = [regex]::Escape($script:CommandsBegin) + '[\s\S]*?' + [regex]::Escape($script:CommandsEnd)
+    $sections = [regex]::Matches($content, $pattern)
+    if ($sections.Count -ne 1) { return 'Conflict' }
+
+    $current = $sections[0].Value
+    $target = Get-CommandsSection -Style $Style -Heading $Heading -Commands $Commands
+    if ($current -eq $target) { return 'Unchanged' }
+    if ($current -ne (Get-CommandsSection -Style $Style -Heading $Heading)) { return 'Conflict' }
+
+    if ($Apply) {
+        $updated = $content.Substring(0, $sections[0].Index) + $target + $content.Substring($sections[0].Index + $current.Length)
+        New-ProjectFile -ProjectPath $ProjectPath -RelativePath $RelativePath -Content $updated -Force
+    }
+    'Ready'
+}
+
+function New-ReadmeFile {
+    param(
+        [Parameter(Mandatory)][string]$ProjectPath,
+        [Parameter(Mandatory)][string]$ProjectName,
+        # Omitted while the implementation language is undecided.
+        [Parameter()][hashtable]$Commands
+    )
+
+    $fence = '```'
+    $content = @"
+# $ProjectName
+
+Brief description of what this project does and its main purpose.
+
+## Prerequisites
+
+- [List required tools, frameworks, and versions]
+
+## Local Setup
+
+1. **Clone the repository**
+   ${fence}bash
+   git clone <repository-url>
+   cd $ProjectName
+   $fence
+
+2. **Configure environment**
+   ${fence}bash
+   cp .env.example .env
+   # Edit .env and add your configuration
+   $fence
+
+$(Get-CommandsSection -Style Readme -Commands $Commands)
 
 ## Architecture
 
@@ -383,7 +514,8 @@ function New-ClaudeInstructions {
     param(
         [Parameter(Mandatory)][string]$ProjectPath,
         [Parameter(Mandatory)][string]$ProjectName,
-        [Parameter(Mandatory)][hashtable]$Commands
+        # Omitted while the implementation language is undecided.
+        [Parameter()][hashtable]$Commands
     )
 
     $fence = '```'
@@ -393,13 +525,7 @@ function New-ClaudeInstructions {
 - **Project:** $ProjectName
 - **Last Updated:** $(Get-Date -Format 'yyyy-MM-dd')
 
-## Commands
-
-- **Install:** ``$($Commands.install)``
-- **Build:** ``$($Commands.build)``
-- **Test:** ``$($Commands.test)``
-- **Lint/Format:** ``$($Commands.lint)``
-- **Run locally:** ``$($Commands.run)``
+$(Get-CommandsSection -Style Instructions -Commands $Commands)
 
 ## Architecture Principles
 
@@ -450,7 +576,8 @@ function New-AgentsInstructions {
     param(
         [Parameter(Mandatory)][string]$ProjectPath,
         [Parameter(Mandatory)][string]$ProjectName,
-        [Parameter(Mandatory)][hashtable]$Commands
+        # Omitted while the implementation language is undecided.
+        [Parameter()][hashtable]$Commands
     )
 
     $fence = '```'
@@ -460,13 +587,7 @@ function New-AgentsInstructions {
 - **Project:** $ProjectName
 - **Last Updated:** $(Get-Date -Format 'yyyy-MM-dd')
 
-## Essential Commands
-
-- **Install:** ``$($Commands.install)``
-- **Build:** ``$($Commands.build)``
-- **Test:** ``$($Commands.test)``
-- **Lint/Format:** ``$($Commands.lint)``
-- **Run locally:** ``$($Commands.run)``
+$(Get-CommandsSection -Style Instructions -Heading 'Essential Commands' -Commands $Commands)
 
 ## Architecture & Design
 
@@ -608,8 +729,12 @@ Export-ModuleMember -Function @(
     'New-ProjectStructure'
     'New-ProjectFile'
     'New-Gitignore'
+    'Get-GitignoreLanguageSection'
     'New-Gitattributes'
     'New-EnvExample'
+    'Get-LanguageCommands'
+    'Get-CommandsSection'
+    'Update-CommandsSection'
     'New-ReadmeFile'
     'New-ArchitectureFile'
     'New-AdrTemplate'

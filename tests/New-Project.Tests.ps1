@@ -103,6 +103,70 @@ Describe 'New-Project.ps1 -LocalOnly' {
     }
 }
 
+Describe 'New-Project.ps1 without -Language' {
+    BeforeAll {
+        Import-Module (Join-Path $PSScriptRoot '../scripts/modules/Project.psm1') -Force
+        $everyCommand = foreach ($language in 'node', 'python', 'csharp', 'rust', 'java', 'go') {
+            (Get-LanguageCommands -Language $language).Values
+        }
+        $starterFiles = 'package.json', 'tsconfig.json', 'eslint.config.js', 'requirements.txt', 'setup.py', 'pyproject.toml',
+            'src/index.ts', 'src/main.py', 'tests/index.test.ts', 'tests/test_main.py'
+    }
+
+    BeforeEach {
+        $root = New-TestRoot -Parent $TestDrive
+        $project = Join-Path (Split-Path -Parent $root) 'Example.Project'
+    }
+
+    AfterEach { Remove-Item Function:\npm, Function:\pytest -ErrorAction SilentlyContinue }
+
+    It 'scaffolds the common files and commits them on main' {
+        Invoke-NewProject @{ Name = 'Example.Project'; Path = $project; LocalOnly = $true }
+
+        $tracked = @(git -C $project ls-files)
+        $tracked | Should -Be @('.env.example', '.gitattributes', '.gitignore', 'AGENTS.md', 'CLAUDE.md', 'README.md',
+            'docs/architecture.md', 'docs/decisions/0001-initial-project-setup.md', 'src/.gitkeep', 'tests/.gitkeep')
+        git -C $project branch --show-current | Should -BeExactly 'main'
+        @(git -C $project rev-list --all).Count | Should -Be 1
+        git -C $project log -1 --format='%s|%an|%ae' | Should -BeExactly 'Initial project scaffold|Pester|pester@example.com'
+        git -C $project status --porcelain | Should -BeNullOrEmpty
+        git -C $project remote | Should -BeNullOrEmpty
+    }
+
+    It 'writes no starter and invents no commands' {
+        Invoke-NewProject @{ Name = 'Example.Project'; Path = $project; LocalOnly = $true }
+
+        foreach ($file in $starterFiles) { Join-Path $project $file | Should -Not -Exist }
+        foreach ($file in 'README.md', 'CLAUDE.md', 'AGENTS.md') {
+            $content = Get-Content -Raw (Join-Path $project $file)
+            foreach ($command in $everyCommand) { $content | Should -Not -Match ([regex]::Escape($command)) -Because $file }
+            $content | Should -Match 'not selected yet|has not been selected yet' -Because $file
+        }
+        Get-Content -Raw (Join-Path $project '.gitignore') | Should -Not -Match 'specific'
+    }
+
+    It 'runs no build or test validation, and says the language is deferred' {
+        function global:npm { throw 'npm must not run' }
+        function global:pytest { throw 'pytest must not run' }
+
+        $output = Get-HostOutput @{ Name = 'Example.Project'; Path = $project; LocalOnly = $true }
+
+        $output | Should -Match 'Implementation language deferred'
+        $output | Should -Match 'Add-ProjectLanguage\.ps1'
+        $output | Should -Not -Match 'Running:|Build and tests passed|Build or tests did not pass'
+    }
+
+    It 'writes only <Expected> for -Client <Client>' -TestCases @(
+        @{ Client = 'ClaudeCode'; Expected = 'CLAUDE.md'; Absent = 'AGENTS.md' }
+        @{ Client = 'Codex'; Expected = 'AGENTS.md'; Absent = 'CLAUDE.md' }
+    ) {
+        Invoke-NewProject @{ Name = 'Example.Project'; Path = $project; Client = $Client; LocalOnly = $true }
+
+        Join-Path $project $Expected | Should -Exist
+        Join-Path $project $Absent | Should -Not -Exist
+    }
+}
+
 Describe 'New-Project.ps1 validation of the build and tests' {
     BeforeEach {
         $root = New-TestRoot -Parent $TestDrive
@@ -236,6 +300,15 @@ Describe 'New-Project.ps1 end to end, with GitHub stood in for' {
         git -C $project remote get-url origin | Should -BeExactly $remote
         git -C $remote rev-parse refs/heads/main | Should -BeExactly (git -C $project rev-parse HEAD)
         $env:TF_VAR_bootstrap_repositories | Should -BeNullOrEmpty
+    }
+
+    It 'publishes a project without -Language through the same New-Repository.ps1 steps' {
+        Invoke-NewProject @{ Name = 'Example.Project'; Path = $project; Description = 'Does a thing' }
+
+        Get-TofuCommand | Should -Be @('init', 'plan', 'show', 'apply', 'output', 'plan', 'show', 'apply')
+        Get-Content -Raw (Join-Path $root 'repositories/Example.Project.yaml') | Should -Match 'auto_init: false'
+        git -C $remote rev-parse refs/heads/main | Should -BeExactly (git -C $project rev-parse HEAD)
+        Join-Path $project 'package.json' | Should -Not -Exist
     }
 
     It 'with -PlanOnly scaffolds and commits, applies nothing, and removes the definition' {

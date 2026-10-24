@@ -42,6 +42,24 @@ The Node starter requires Node.js 22.13+ on the 22.x line, or Node.js 24+. After
 builds to `dist/`; startup runs that compiled output. Tests use Node's test runner with tsx and lint
 uses ESLint 10 with a TypeScript flat config. `npm run dev` watches the source with tsx.
 
+### Without a language
+
+`-Language` is optional. Leave it out while the implementation language is still undecided:
+
+```powershell
+./scripts/New-Project.ps1 -Name SubZeroDev.Thing -LocalOnly
+```
+
+The project gets the same common files, committed on `main`, but no starter and no validation. `README.md`, `CLAUDE.md` and `AGENTS.md` say the language is not selected yet instead of listing install, build, test, lint and run commands. Publishing works the same way.
+
+When the language is chosen, add it:
+
+```powershell
+./scripts/Add-ProjectLanguage.ps1 -Path ../SubZeroDev.Thing -Language node
+```
+
+It writes the starter files that do not exist yet, appends the language's `.gitignore` lines, and replaces the undecided commands section of each instruction file. Everything is checked first: if a starter file already exists with other content, or a commands section was edited, it writes nothing and lists each conflict. It never commits, and running it again changes nothing.
+
 ## Create a repository
 
 For a repository with no scaffold, or a project that already exists locally:
@@ -63,6 +81,20 @@ Required status checks take `context` or `context@integration_id` (15368 is GitH
 ```
 
 Add `-PlanOnly` to see the plan without applying anything. The script refuses any plan that destroys or replaces a resource unless `-Force` is given.
+
+For automation authorized to create only the named repository, pass `-TargetScoped`
+to both the preview and the publishing invocation. Each exact saved plan is checked
+immediately before apply: creation must create only the named repository and its
+`Main` ruleset; after pushing `main`, activation may only update that ruleset's
+enforcement from `disabled` to `active`, with every other attribute unchanged and
+known. Unrelated no-ops are allowed. Imports, moves, other creates or updates,
+deletions and replacements are refused, even with `-Force`. A preview does not
+authorize a later plan. Without `-TargetScoped`, the existing whole-configuration
+behavior is unchanged.
+
+If scoped publishing stops, its error reports the completed apply/push stages and
+the retained definition path. A failed apply can be partial; verify remote state
+before retrying. The script does not roll back a created repository or a push.
 
 ## Change a repository
 
