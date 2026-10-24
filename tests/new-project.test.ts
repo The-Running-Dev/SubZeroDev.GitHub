@@ -17,8 +17,8 @@ import {
 } from './helpers.ts';
 
 const name = 'Example.Project';
-const identity = { gitUserName: 'Pester', gitUserEmail: 'pester@example.com' };
-const publishEnv = { TF_VAR_state_passphrase: 'pester-passphrase-0123', GITHUB_TOKEN: 'pester-token' };
+const identity = { gitUserName: 'Test', gitUserEmail: 'test@example.com' };
+const publishEnv = { TF_VAR_state_passphrase: 'test-passphrase-0123', GITHUB_TOKEN: 'test-token' };
 const commonFiles = [
   '.env.example', '.gitattributes', '.gitignore', 'AGENTS.md', 'CLAUDE.md', 'README.md',
   'docs/architecture.md', 'docs/decisions/0001-initial-project-setup.md', 'src/.gitkeep', 'tests/.gitkeep',
@@ -43,7 +43,7 @@ function setup(t: TestContext, options: { env?: NodeJS.ProcessEnv; exitCodes?: R
 function assertSingleCleanCommit(project: string) {
   assert.equal(git(project, 'branch', '--show-current'), 'main');
   assert.equal(lines(git(project, 'rev-list', '--all')).length, 1);
-  assert.equal(git(project, 'log', '-1', '--format=%s|%an|%ae'), 'Initial project scaffold|Pester|pester@example.com');
+  assert.equal(git(project, 'log', '-1', '--format=%s|%an|%ae'), 'Initial project scaffold|Test|test@example.com');
   assert.equal(git(project, 'status', '--porcelain'), '');
   assert.equal(git(project, 'remote'), '');
 }

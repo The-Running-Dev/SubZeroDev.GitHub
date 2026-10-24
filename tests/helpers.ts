@@ -62,8 +62,8 @@ export function createGitRepository(path: string, options: { commit?: boolean; b
     return;
   }
   git(path, 'init', '--quiet', '--initial-branch=main');
-  git(path, 'config', 'user.name', 'Pester');
-  git(path, 'config', 'user.email', 'pester@example.com');
+  git(path, 'config', 'user.name', 'Test');
+  git(path, 'config', 'user.email', 'test@example.com');
   git(path, 'config', 'core.autocrlf', 'false');
   if (options.commit) {
     writeFileSync(join(path, 'README.md'), '# Test\n');

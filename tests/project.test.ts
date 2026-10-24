@@ -272,13 +272,13 @@ describe('git', () => {
   test('initializes on main, commits the scaffold and leaves a clean tree', (t) => {
     const path = tempDir(t);
     createProjectStructure(path);
-    initializeProjectGit(run, memoryLog(), path, 'Pester', 'pester@example.com');
+    initializeProjectGit(run, memoryLog(), path, 'Test', 'test@example.com');
     git(path, 'config', 'core.autocrlf', 'false');
     createInitialCommit(run, path);
 
     assert.equal(git(path, 'branch', '--show-current'), 'main');
-    assert.equal(git(path, 'config', 'user.name'), 'Pester');
-    assert.equal(git(path, 'config', 'user.email'), 'pester@example.com');
+    assert.equal(git(path, 'config', 'user.name'), 'Test');
+    assert.equal(git(path, 'config', 'user.email'), 'test@example.com');
     const tracked = git(path, 'ls-files').split('\n');
     assert.ok(tracked.includes('src/.gitkeep'));
     assert.ok(tracked.includes('tests/.gitkeep'));

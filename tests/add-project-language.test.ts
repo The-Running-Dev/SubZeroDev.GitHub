@@ -29,7 +29,7 @@ function setup(t: TestContext, language?: Language, create = true) {
   if (create) {
     createProject({
       name: 'Example.Project', path: project, language, localOnly: true, skipValidation: true,
-      gitUserName: 'Pester', gitUserEmail: 'pester@example.com',
+      gitUserName: 'Test', gitUserEmail: 'test@example.com',
     }, testContext(root));
   }
   // Each call gets a fresh log, so its output is only its own.

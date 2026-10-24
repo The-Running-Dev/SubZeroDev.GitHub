@@ -13,8 +13,8 @@ import type { RepositoryOptions } from '../scripts/new-repository.ts';
 import { createGitRepository, git, repositoryRoot, testContext, testEnv, testRoot, tofuMock } from './helpers.ts';
 
 const name = 'Example.Repository';
-const passphrase = 'pester-passphrase-0123';
-const token = 'pester-token';
+const passphrase = 'test-passphrase-0123';
+const token = 'test-token';
 const repositoryAddress = `module.repository["${name}"].github_repository.this`;
 const rulesetAddress = `module.repository["${name}"].github_repository_ruleset.main`;
 
@@ -91,8 +91,8 @@ describe('createRepository YAML', () => {
 
   test('lowercases and quotes topics', (t) => {
     const { create, definition } = setup(t);
-    create({ topics: ['PowerShell', 'Tooling'] });
-    assert.match(readFileSync(definition, 'utf8'), /topics:\n {2}- 'powershell'\n {2}- 'tooling'\n/);
+    create({ topics: ['TypeScript', 'Tooling'] });
+    assert.match(readFileSync(definition, 'utf8'), /topics:\n {2}- 'typescript'\n {2}- 'tooling'\n/);
   });
 
   test('writes required checks with an integration id only where given', (t) => {
