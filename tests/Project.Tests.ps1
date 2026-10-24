@@ -137,6 +137,79 @@ Describe 'Common files' {
     }
 }
 
+Describe 'Common files while the language is undecided' {
+    BeforeAll {
+        $project = New-TestFolder
+        New-ReadmeFile -ProjectPath $project -ProjectName 'Example.Project'
+        New-ClaudeInstructions -ProjectPath $project -ProjectName 'Example.Project'
+        New-AgentsInstructions -ProjectPath $project -ProjectName 'Example.Project'
+    }
+
+    It '<File> names the project, says the language is undecided, and lists no commands' -TestCases @(
+        @{ File = 'README.md' }
+        @{ File = 'CLAUDE.md' }
+        @{ File = 'AGENTS.md' }
+    ) {
+        $content = Get-Content -Raw (Join-Path $project $File)
+        $content | Should -Match 'Example\.Project'
+        $content | Should -Match 'not selected yet|has not been selected yet'
+        $content | Should -Not -Match '\*\*(Install|Build|Test):\*\*|## (Install|Build|Test|Lint)\b'
+        $content | Should -Match 'Architecture'
+    }
+
+    It 'README.md has balanced code fences' {
+        $fences = @(Get-Content (Join-Path $project 'README.md') | Where-Object { $_.Trim() -like '```*' })
+        $fences.Count % 2 | Should -Be 0
+    }
+}
+
+Describe 'Update-CommandsSection' {
+    BeforeEach {
+        $project = New-TestFolder
+        New-ClaudeInstructions -ProjectPath $project -ProjectName 'Example.Project'
+        $path = Join-Path $project 'CLAUDE.md'
+        $arguments = @{ ProjectPath = $project; RelativePath = 'CLAUDE.md'; Style = 'Instructions'; Commands = $commands }
+    }
+
+    It 'reports Ready, and writes nothing without -Apply' {
+        $before = Get-Content -Raw $path
+
+        Update-CommandsSection @arguments | Should -BeExactly 'Ready'
+        Get-Content -Raw $path | Should -BeExactly $before
+    }
+
+    It 'replaces only the undecided section with -Apply, then reports Unchanged' {
+        $before = Get-Content -Raw $path
+
+        Update-CommandsSection @arguments -Apply | Should -BeExactly 'Ready'
+        $after = Get-Content -Raw $path
+        $after | Should -Match ([regex]::Escape('- **Test:** `test-cmd`'))
+        $after | Should -Not -Match 'not been selected'
+        ($after -split '<!-- END project-commands -->')[1] | Should -BeExactly ($before -split '<!-- END project-commands -->')[1]
+        Update-CommandsSection @arguments | Should -BeExactly 'Unchanged'
+    }
+
+    It 'reports Conflict for an edited section and leaves the file alone' {
+        $edited = (Get-Content -Raw $path) -replace 'Do not guess', 'Please do not guess'
+        Set-Content -Path $path -Value $edited -NoNewline
+
+        Update-CommandsSection @arguments -Apply | Should -BeExactly 'Conflict'
+        Get-Content -Raw $path | Should -BeExactly $edited
+    }
+
+    It 'reports Conflict when the markers are gone' {
+        Set-Content -Path $path -Value "# Mine`n" -NoNewline
+
+        Update-CommandsSection @arguments | Should -BeExactly 'Conflict'
+    }
+
+    It 'reports Missing for a file that does not exist' {
+        $arguments.RelativePath = 'AGENTS.md'
+
+        Update-CommandsSection @arguments | Should -BeExactly 'Missing'
+    }
+}
+
 Describe 'Invoke-LanguageStarter' {
     It 'returns $false for <Language>, which has no starter' -TestCases @(
         @{ Language = 'csharp' }, @{ Language = 'rust' }, @{ Language = 'java' }, @{ Language = 'go' }
