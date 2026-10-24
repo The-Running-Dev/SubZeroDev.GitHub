@@ -4,7 +4,7 @@
 
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { delimiter, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { TestContext } from 'node:test';
 import type { Context } from '../scripts/lib/context.ts';
@@ -76,6 +76,7 @@ export interface TofuCall {
   command: string;
   args: string[];
   bootstrap: string | undefined;
+  githubToken: string | undefined;
   planPath: string | undefined;
   planJson: string | undefined;
   stdio: 'inherit' | undefined;
@@ -87,7 +88,9 @@ export interface TofuMock {
   // Distinct resource_changes arrays, one per plan, before resourceChanges applies.
   plans: unknown[][];
   savedPlans: Map<string, string>;
+  // tofu subcommands, or 'gh', mapped to the exit code they fail with.
   exitCodes: Record<string, number>;
+  ghCalls: number;
   repositoryName: string;
   cloneUrl: string;
   ghToken: string;
@@ -105,6 +108,7 @@ export function tofuMock(options: { repositoryName?: string; cloneUrl?: string }
     plans: [],
     savedPlans: new Map(),
     exitCodes: {},
+    ghCalls: 0,
     repositoryName: options.repositoryName ?? '',
     cloneUrl: options.cloneUrl ?? '',
     ghToken: 'test-token',
@@ -114,7 +118,10 @@ export function tofuMock(options: { repositoryName?: string; cloneUrl?: string }
   const result = (code: number, stdout = ''): ProcessResult => ({ code, stdout, stderr: code ? `tofu failed with ${code}` : '', found: true });
 
   const runner: Runner = (command, args, processOptions = {}) => {
-    if (command === 'gh' && args[0] === 'auth' && args[1] === 'token') return result(0, `${mock.ghToken}\n`);
+    if (command === 'gh' && args[0] === 'auth' && args[1] === 'token') {
+      mock.ghCalls += 1;
+      return mock.exitCodes.gh ? result(mock.exitCodes.gh) : result(0, `${mock.ghToken}\n`);
+    }
     if (command !== 'tofu') return run(command, args, processOptions);
 
     const subcommand = args.filter((arg) => !arg.startsWith('-chdir='))[0];
@@ -125,6 +132,7 @@ export function tofuMock(options: { repositoryName?: string; cloneUrl?: string }
       command: subcommand,
       args,
       bootstrap: processOptions.env?.TF_VAR_bootstrap_repositories,
+      githubToken: processOptions.env?.GITHUB_TOKEN,
       planPath,
       planJson: planPath ? mock.savedPlans.get(planPath) : undefined,
       stdio: processOptions.stdio,
@@ -163,6 +171,16 @@ export function shellMock(exitCodes: Record<string, number> = {}): { calls: Shel
       return { code: exitCodes[command] ?? 0, stdout: '', stderr: '', found: true };
     },
   };
+}
+
+// A PATH whose first folder holds a do-nothing tofu, so the availability check passes;
+// the calls themselves go to tofuMock.
+export function pathWithTofu(t: TestContext): string {
+  const bin = join(tempDir(t), 'bin');
+  mkdirSync(bin);
+  writeFileSync(join(bin, 'tofu'), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+  writeFileSync(join(bin, 'tofu.cmd'), '@exit /b 0\r\n');
+  return `${bin}${delimiter}${process.env.PATH ?? process.env.Path ?? ''}`;
 }
 
 // The scripts' environment without the variables they read, plus any overrides.
