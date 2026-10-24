@@ -1,4 +1,4 @@
-# Run with `tofu test` (tests/Tofu.Tests.ps1 does). The provider is mocked, so
+# Run with `tofu test` (npm run test:tofu does). The provider is mocked, so
 # nothing here talks to GitHub or needs a token.
 mock_provider "github" {}
 

@@ -14,28 +14,32 @@ Every GitHub repository under `The-Running-Dev` gets the same settings and the s
 
 ## Prerequisites
 
-- OpenTofu: `winget install OpenTofu.Tofu`
+The scripts run on Windows, macOS and Linux.
+
+- Node.js 22.18+ (TypeScript runs directly; there is no build step). Run `npm ci` once.
+- Git.
+- OpenTofu: https://opentofu.org/docs/intro/install/ (`winget install OpenTofu.Tofu`, `brew install opentofu`, ...)
 - GitHub CLI, signed in: `gh auth login`
 - A state passphrase of at least 16 characters, kept somewhere safe. State and plans are encrypted with it, and they cannot be read without it.
 
-```powershell
-$env:TF_VAR_state_passphrase = '<your passphrase>'
+```bash
+export TF_VAR_state_passphrase='<your passphrase>'
 ```
 
 ## Create a project
 
 One command scaffolds the project, commits it on `main`, creates the repository and pushes it:
 
-```powershell
-./scripts/New-Project.ps1 -Name SubZeroDev.Thing -Language node -Description 'Does a thing' -Topics node,tooling
+```bash
+node scripts/new-project.ts --name SubZeroDev.Thing --language node --description 'Does a thing' --topics node,tooling
 ```
 
-The project goes next to this repository (`../SubZeroDev.Thing`) unless `-Path` says otherwise. It gets `src/`, `tests/`, `docs/architecture.md`, a first ADR, `.gitignore`, `.gitattributes`, `.env.example`, `README.md`, `CLAUDE.md` and `AGENTS.md` (`-Client ClaudeCode` or `-Client Codex` for one of them), plus the language starter from `scripts/starters/<language>.ps1`. `node` and `python` have starters; `csharp`, `rust`, `java` and `go` get the common files only.
+The project goes next to this repository (`../SubZeroDev.Thing`) unless `--path` says otherwise. It gets `src/`, `tests/`, `docs/architecture.md`, a first ADR, `.gitignore`, `.gitattributes`, `.env.example`, `README.md`, `CLAUDE.md` and `AGENTS.md` (`--client claude-code` or `--client codex` for one of them), plus the language starter from `scripts/starters/<language>.ts`. `node` and `python` have starters; `csharp`, `rust`, `java` and `go` get the common files only.
 
-- `-SkipValidation` skips running the build and test commands. A failure there is reported, not fatal.
-- `-LocalOnly` stops after the commit. Publish later with `New-Repository.ps1 -Path`.
-- `-PlanOnly` scaffolds and commits, then shows the GitHub plan without applying it.
-- `-Visibility`, `-Topics` and `-RequiredCheck` are passed to `New-Repository.ps1`.
+- `--skip-validation` skips running the build and test commands. A failure there is reported, not fatal.
+- `--local-only` stops after the commit. Publish later with `new-repository.ts --path`.
+- `--plan-only` scaffolds and commits, then shows the GitHub plan without applying it.
+- `--visibility`, `--topics` and `--required-check` are passed to `new-repository.ts`.
 
 The Node starter requires Node.js 22.13+ on the 22.x line, or Node.js 24+. After `npm install`, run
 `npm run build`, `npm test`, `npm run lint`, then `npm start`. TypeScript source
@@ -44,18 +48,18 @@ uses ESLint 10 with a TypeScript flat config. `npm run dev` watches the source w
 
 ### Without a language
 
-`-Language` is optional. Leave it out while the implementation language is still undecided:
+`--language` is optional. Leave it out while the implementation language is still undecided:
 
-```powershell
-./scripts/New-Project.ps1 -Name SubZeroDev.Thing -LocalOnly
+```bash
+node scripts/new-project.ts --name SubZeroDev.Thing --local-only
 ```
 
 The project gets the same common files, committed on `main`, but no starter and no validation. `README.md`, `CLAUDE.md` and `AGENTS.md` say the language is not selected yet instead of listing install, build, test, lint and run commands. Publishing works the same way.
 
 When the language is chosen, add it:
 
-```powershell
-./scripts/Add-ProjectLanguage.ps1 -Path ../SubZeroDev.Thing -Language node
+```bash
+node scripts/add-project-language.ts --path ../SubZeroDev.Thing --language node
 ```
 
 It writes the starter files that do not exist yet, appends the language's `.gitignore` lines, and replaces the undecided commands section of each instruction file. Everything is checked first: if a starter file already exists with other content, or a commands section was edited, it writes nothing and lists each conflict. It never commits, and running it again changes nothing.
@@ -64,33 +68,34 @@ It writes the starter files that do not exist yet, appends the language's `.giti
 
 For a repository with no scaffold, or a project that already exists locally:
 
-```powershell
-./scripts/New-Repository.ps1 -Name SubZeroDev.Thing -Description 'Does a thing' -Topics powershell,tooling
+```bash
+node scripts/new-repository.ts --name SubZeroDev.Thing --description 'Does a thing' --topics typescript,tooling
 ```
 
 To publish a project that already exists locally, pass its folder. The repository is created empty, the local `main` is pushed, then the ruleset is switched on:
 
-```powershell
-./scripts/New-Repository.ps1 -Name SubZeroDev.Thing -Path D:\Dropbox\Projects\SubZeroDev.Thing
+```bash
+node scripts/new-repository.ts --name SubZeroDev.Thing --path ../SubZeroDev.Thing
 ```
 
 Required status checks take `context` or `context@integration_id` (15368 is GitHub Actions):
 
-```powershell
-./scripts/New-Repository.ps1 -Name SubZeroDev.Thing -RequiredCheck 'build / Result@15368'
+```bash
+node scripts/new-repository.ts --name SubZeroDev.Thing --required-check 'build / Result@15368'
 ```
 
-Add `-PlanOnly` to see the plan without applying anything. The script refuses any plan that destroys or replaces a resource unless `-Force` is given.
+Add `--plan-only` to see the plan without applying anything. The script refuses any plan that destroys or replaces a resource unless `--force` is given.
 
-For automation authorized to create only the named repository, pass `-TargetScoped`
+For automation authorized to create only the named repository, pass `--target-scoped`
 to both the preview and the publishing invocation. Each exact saved plan is checked
 immediately before apply: creation must create only the named repository and its
 `Main` ruleset; after pushing `main`, activation may only update that ruleset's
 enforcement from `disabled` to `active`, with every other attribute unchanged and
 known. Unrelated no-ops are allowed. Imports, moves, other creates or updates,
-deletions and replacements are refused, even with `-Force`. A preview does not
-authorize a later plan. Without `-TargetScoped`, the existing whole-configuration
-behavior is unchanged.
+deletions and replacements are refused, even with `--force`. A preview does not
+authorize a later plan. Without `--target-scoped`, the existing whole-configuration
+behavior is unchanged. `--capabilities` prints `{"targetScoped":true}` so callers can
+check for the guard before relying on it.
 
 If scoped publishing stops, its error reports the completed apply/push stages and
 the retained definition path. A failed apply can be partial; verify remote state
@@ -105,7 +110,7 @@ description: 'Does a thing'
 homepage_url: 'https://example.com'
 visibility: public          # or private
 topics:
-  - powershell
+  - typescript
 required_checks:
   - context: 'build / Result'
     integration_id: 15368
@@ -114,8 +119,8 @@ auto_init: true             # false when an existing history will be pushed
 
 Edit the file, then:
 
-```powershell
-$env:GITHUB_TOKEN = gh auth token
+```bash
+export GITHUB_TOKEN="$(gh auth token)"
 tofu plan -out=change.tfplan
 tofu apply change.tfplan
 ```
@@ -128,7 +133,7 @@ Edit `modules/repository/main.tf`. The next `tofu apply` brings every repository
 
 Add its YAML, then import both resources before applying:
 
-```powershell
+```bash
 tofu import 'module.repository["SubZeroDev.Thing"].github_repository.this' SubZeroDev.Thing
 tofu import 'module.repository["SubZeroDev.Thing"].github_repository_ruleset.main' SubZeroDev.Thing:<ruleset id>
 ```
@@ -137,21 +142,26 @@ A repository without a `Main` ruleset needs only the first import; the apply cre
 
 ## Test
 
-```powershell
-Invoke-Pester tests
+```bash
+npm run typecheck
+npm test
 ```
 
-The scripts run against a stand-in for `tofu` and a local bare repository, so nothing touches GitHub or the real state. Tests tagged `Tofu` also run `tofu fmt`, `validate` and `tofu test` (the github provider is mocked); they skip when OpenTofu is not installed. Run only those with `Invoke-Pester tests -TagFilter Tofu`.
+The scripts run against a stand-in for `tofu` and a local bare repository, so nothing touches GitHub or the real state. The OpenTofu checks run separately and skip when OpenTofu is not installed: `tofu fmt`, `validate` and `tofu test` (the github provider is mocked), plus a check that the YAML the scripts write decodes as intended:
 
-Run the real Node toolchain smoke test separately (requires Git, Node.js 22.13+ on 22.x or 24+
-and npm registry access, but no Pester, GitHub credentials or OpenTofu):
-
-```powershell
-./tests/Invoke-NodeSmokeTest.ps1
+```bash
+npm run test:tofu
 ```
 
-It scaffolds with `-LocalOnly` into a temporary workspace, installs dependencies,
+Run the real Node toolchain smoke test separately (requires Git, Node.js 22.18+ and npm
+registry access, but no GitHub credentials or OpenTofu):
+
+```bash
+npm run smoke
+```
+
+It scaffolds with `--local-only` into a temporary workspace, installs dependencies,
 builds, tests and lints, then starts the compiled application with the source
 directory removed. It also verifies that a failing assertion and a TypeScript
 lint violation are rejected. The workspace is
-deleted even if a check fails. CI runs it on Ubuntu and Windows with Node 22 and 24.
+deleted even if a check fails. CI runs the tests and the smoke test on Ubuntu, Windows and macOS with Node 22 and 24.

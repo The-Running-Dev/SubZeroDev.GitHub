@@ -1,8 +1,9 @@
 name: CI
 
-# Pester runs the scripts against a stand-in for tofu and a local bare repository, so
-# nothing here touches GitHub or the real state. The Tofu job adds the tests that need
-# OpenTofu itself: fmt, validate, and tofu test with the github provider mocked.
+# The tests run the scripts against a stand-in for tofu and a local bare repository, so
+# nothing here touches GitHub or the real state. The OpenTofu job adds the tests that
+# need OpenTofu itself: fmt, validate, tofu test with the github provider mocked, and
+# decoding the definitions the scripts write.
 
 on:
   push:
@@ -14,18 +15,8 @@ on:
 permissions: {}
 
 jobs:
-  pester:
-    name: Pester
-    permissions:
-      contents: read
-    uses: The-Running-Dev/GitHub-ActionTemplates/.github/workflows/pwsh-ci.yml@v1
-    with:
-      os: '["ubuntu-latest", "windows-latest"]'
-      tests: tests
-      exclude-tags: Tofu
-
-  node-smoke:
-    name: Node smoke (${{ matrix.os }}, Node ${{ matrix.node }})
+  test:
+    name: Test (${{ matrix.os }}, Node ${{ matrix.node }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     permissions:
@@ -33,7 +24,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
         node: ['22', '24']
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -44,9 +35,34 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
 
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+  node-smoke:
+    name: Node smoke (${{ matrix.os }}, Node ${{ matrix.node }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node: ['22', '24']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: ${{ matrix.node }}
+
+      - run: npm ci
+
       - name: Generate and exercise Node starter
-        shell: pwsh
-        run: ./tests/Invoke-NodeSmokeTest.ps1
+        run: npm run smoke
 
   tofu:
     name: OpenTofu
@@ -54,26 +70,18 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: read
-    env:
-      # Only satisfies the variable's validation; init runs without a backend.
-      TF_VAR_state_passphrase: ci-placeholder-passphrase
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+
       - uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
         with:
           tofu_wrapper: false
 
-      - name: Pester (Tofu)
-        shell: pwsh
-        run: |
-          Install-Module Pester -RequiredVersion 5.7.1 -Force -Scope CurrentUser -SkipPublisherCheck
-          Import-Module Pester -RequiredVersion 5.7.1
-          $configuration = New-PesterConfiguration
-          $configuration.Run.Path = 'tests'
-          $configuration.Filter.Tag = 'Tofu'
-          $configuration.Run.Exit = $true
-          $configuration.Output.Verbosity = 'Detailed'
-          Invoke-Pester -Configuration $configuration
+      - run: npm ci
+      - run: npm run test:tofu

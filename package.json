@@ -1,0 +1,19 @@
+{
+  "name": "subzerodev-github",
+  "private": true,
+  "description": "GitHub repositories under OpenTofu management, and the scripts that scaffold and publish new projects.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --test \"tests/*.test.ts\"",
+    "test:tofu": "node --test tests/tofu.integration.ts",
+    "smoke": "node tests/node-smoke.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "typescript": "^5.9.3"
+  }
+}
