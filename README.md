@@ -37,6 +37,24 @@ The project goes next to this repository (`../SubZeroDev.Thing`) unless `-Path` 
 - `-PlanOnly` scaffolds and commits, then shows the GitHub plan without applying it.
 - `-Visibility`, `-Topics` and `-RequiredCheck` are passed to `New-Repository.ps1`.
 
+### Without a language
+
+`-Language` is optional. Leave it out while the implementation language is still undecided:
+
+```powershell
+./scripts/New-Project.ps1 -Name SubZeroDev.Thing -LocalOnly
+```
+
+The project gets the same common files, committed on `main`, but no starter and no validation. `README.md`, `CLAUDE.md` and `AGENTS.md` say the language is not selected yet instead of listing install, build, test, lint and run commands. Publishing works the same way.
+
+When the language is chosen, add it:
+
+```powershell
+./scripts/Add-ProjectLanguage.ps1 -Path ../SubZeroDev.Thing -Language node
+```
+
+It writes the starter files that do not exist yet, appends the language's `.gitignore` lines, and replaces the undecided commands section of each instruction file. Everything is checked first: if a starter file already exists with other content, or a commands section was edited, it writes nothing and lists each conflict. It never commits, and running it again changes nothing.
+
 ## Create a repository
 
 For a repository with no scaffold, or a project that already exists locally:
