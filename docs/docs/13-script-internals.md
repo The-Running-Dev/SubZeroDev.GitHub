@@ -26,8 +26,7 @@ scripts/
 │   └── plan-guard.ts         The plan guards
 └── starters/
     ├── index.ts              The starters registry
-    ├── node.ts
-    └── python.ts
+    └── node.ts
 ```
 
 ## Context
@@ -101,7 +100,6 @@ export type Starter = (log: Log, projectPath: string, projectName: string) => vo
 
 export const starters: Partial<Record<Language, Starter>> = {
   node: nodeStarter,
-  python: pythonStarter,
 };
 ```
 

@@ -9,7 +9,7 @@ import type { Log } from './log.ts';
 import { findExecutable } from './process.ts';
 import type { Runner, ShellRunner } from './process.ts';
 
-export const languages = ['node', 'python', 'csharp', 'rust', 'java', 'go'] as const;
+export const languages = ['node', 'csharp', 'rust', 'java', 'go'] as const;
 export type Language = (typeof languages)[number];
 
 export interface Commands {
@@ -75,10 +75,6 @@ Thumbs.db
 
 # Dependencies
 node_modules/
-__pycache__/
-venv/
-.venv/
-*.egg-info/
 dist/
 build/
 
@@ -87,7 +83,6 @@ bin/
 obj/
 .next/
 out/
-.pytest_cache/
 coverage/
 .nyc_output/
 
@@ -104,7 +99,6 @@ cache/
 // The language's own .gitignore lines, headed by a comment; empty when it has none.
 export function gitignoreSection(language?: Language): string {
   switch (language) {
-    case 'python': return '# Python specific\nvenv/\n*.pyc\n.pytest_cache/\ndist/\nbuild/';
     case 'node': return '# Node specific\nnode_modules/\n.npm/\n.next/\nout/';
     case 'csharp': return '# C# specific\nbin/\nobj/\n*.user\n.vs/';
     case 'java': return '# Java specific\ntarget/\n.gradle/\nbuild/';
@@ -149,7 +143,6 @@ LOG_LEVEL=info
 export function languageCommands(language: Language): Commands {
   switch (language) {
     case 'node': return { install: 'npm install', build: 'npm run build', test: 'npm test', lint: 'npm run lint', run: 'npm start' };
-    case 'python': return { install: 'pip install -r requirements.txt', build: 'python setup.py build', test: 'pytest', lint: 'pylint src/', run: 'python -m src.main' };
     case 'csharp': return { install: 'dotnet restore', build: 'dotnet build', test: 'dotnet test', lint: 'dotnet format --verify-no-changes', run: 'dotnet run' };
     case 'rust': return { install: 'cargo fetch', build: 'cargo build --release', test: 'cargo test', lint: 'cargo clippy', run: 'cargo run --release' };
     case 'java': return { install: 'mvn install', build: 'mvn clean package', test: 'mvn test', lint: 'mvn checkstyle:check', run: 'java -jar target/app.jar' };
@@ -317,8 +310,8 @@ ${fence}
 
 ## Technology Stack
 
-- **Language:** [e.g., Node.js, Python]
-- **Framework:** [e.g., Express, FastAPI]
+- **Language:** [e.g., Node.js, C#]
+- **Framework:** [e.g., Express, ASP.NET Core]
 - **Database:** [e.g., PostgreSQL]
 - **Hosting:** [e.g., Docker, Kubernetes, serverless]
 

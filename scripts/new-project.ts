@@ -17,7 +17,7 @@
 // publish it later.
 //
 //   node scripts/new-project.ts --name SubZeroDev.Thing --language node --description 'Does a thing'
-//   node scripts/new-project.ts --name SubZeroDev.Thing --language python --local-only
+//   node scripts/new-project.ts --name SubZeroDev.Thing --language csharp --local-only
 //   node scripts/new-project.ts --name SubZeroDev.Thing --local-only
 
 import { existsSync, mkdirSync } from 'node:fs';
