@@ -1,0 +1,88 @@
+---
+title: Testing and CI
+description: The test suites for the scripts and the OpenTofu configuration, and the workflows that run them.
+---
+
+# Testing and CI
+
+None of the tests touch GitHub, a token or the real state. The script tests run against a stand-in for `tofu` and local bare repositories, and the OpenTofu tests mock the `github` provider.
+
+## Commands
+
+| Command | What it runs | Needs |
+| --- | --- | --- |
+| `npm run typecheck` | `tsc --noEmit` over the scripts and tests. | Node.js |
+| `npm test` | `node --test "tests/*.test.ts"`: the unit and script tests. | Node.js, Git |
+| `npm run test:tofu` | `tests/tofu.integration.ts`: the OpenTofu configuration and the definitions the scripts write. Skipped where `tofu` is not installed. | OpenTofu |
+| `npm run smoke` | `tests/node-smoke.ts`: a real Node.js project, built, tested, linted and started. | Node.js, Git, npm registry access |
+
+Run `npm ci` once first. The scripts run TypeScript directly, so there is no build step.
+
+## Script tests
+
+| File | Covers |
+| --- | --- |
+| `tests/project.test.ts` | The shared project library: names, generated files, commands sections, `.gitignore` sections. |
+| `tests/new-project.test.ts` | `new-project.ts` end to end, in throwaway folders. |
+| `tests/new-repository.test.ts` | `new-repository.ts`, its plan guards and the publish flow, against the `tofu` stand-in and a local bare `origin`. |
+| `tests/add-project-language.test.ts` | Planning, conflicts and idempotence of `add-project-language.ts`. |
+
+`tests/helpers.ts` holds the shared fixtures: temporary folders removed after each test, a copy of `scripts/` with an empty `repositories/` for running a CLI, a memory log, Git helpers, and `tofuMock`, a recording stand-in that returns canned plans and outputs. The entry points take a `Context`, so the tests pass these in place of the real process runner; see [Script internals](13-script-internals.md#context).
+
+## OpenTofu tests
+
+`npm run test:tofu` initializes the configuration without a backend, then checks that it passes `tofu fmt -check -recursive` and `tofu validate`, and runs `tofu test`. The `tofu test` runs live in two files, each with `mock_provider "github"`:
+
+| Run | Checks |
+| --- | --- |
+| `module.tftest.hcl` · `standard_repository_settings` | The repository settings in [The repository standard](03-repository-standard.md). |
+| `module.tftest.hcl` · `standard_main_ruleset` | The `Main` ruleset and its rules. |
+| `module.tftest.hcl` · `required_checks_become_required_status_checks` | `required_checks` turn into the required status checks rule. |
+| `module.tftest.hcl` · `disabled_enforcement_is_passed_through` | `enforcement = "disabled"` reaches the ruleset. |
+| `module.tftest.hcl` · `invalid_visibility_is_rejected` | Variable validation for `visibility`. |
+| `module.tftest.hcl` · `invalid_enforcement_is_rejected` | Variable validation for `enforcement`. |
+| `repository.tftest.hcl` · `every_yaml_file_becomes_a_repository` | Each file in `repositories/` becomes one module instance. |
+| `repository.tftest.hcl` · `managed_repository_ruleset_is_active` | Rulesets are `active` by default. |
+| `repository.tftest.hcl` · `bootstrap_disables_the_ruleset` | `bootstrap_repositories` disables only the named ruleset. |
+| `repository.tftest.hcl` · `short_passphrase_is_rejected` | A passphrase under 16 characters fails validation. |
+
+The same file then writes definitions with `new-repository.ts` and decodes them with OpenTofu itself. It checks that descriptions and visibility survive unchanged, that topics stay strings even when YAML would read them as booleans or numbers, that `integration_id` stays a number, and that `auto_init: false` is a boolean. See [Repository definitions](04-repository-definitions.md).
+
+## Node smoke test
+
+`npm run smoke` scaffolds a Node.js project with `new-project.ts --local-only` into a temporary folder whose path contains spaces. It refuses to run if the scaffolder ever calls `tofu` or `gh`. It then checks that:
+
+- the project is on `main` with exactly one commit, a clean working tree, no remote, and no definition written;
+- every tracked file has LF line endings, and both `AGENTS.md` and `CLAUDE.md` exist;
+- `npm install`, `npm run build`, `npm test` and `npm run lint` succeed;
+- `npm test` fails on a deliberately failing assertion, and `npm run lint` fails on an unused variable, so the checks are real;
+- `package.json` points `main` at `dist/index.js`, and the tests are not compiled into `dist/`;
+- `npm start` prints the greeting with `src/` moved away, so the compiled output runs on its own.
+
+The workspace is deleted afterwards, whether the test passes or fails.
+
+## Continuous integration
+
+`.github/workflows/ci.yml` runs on pushes to `main`, on pull requests to `main`, and by hand:
+
+| Job | Runs on | Steps |
+| --- | --- | --- |
+| `Test` | Ubuntu, Windows and macOS × Node.js 22 and 24 | `npm ci`, `npm run typecheck`, `npm test` |
+| `Node smoke` | Ubuntu, Windows and macOS × Node.js 22 and 24 | `npm ci`, `npm run smoke` |
+| `OpenTofu` | Ubuntu, Node.js 24, OpenTofu from `opentofu/setup-opentofu` | `npm ci`, `npm run test:tofu` |
+
+The workflow starts from `permissions: {}`, and each job asks only for `contents: read`. Every action is pinned to a full commit SHA, and checkout does not keep credentials.
+
+This repository's own definition, `repositories/SubZeroDev.GitHub.yaml`, lists no `required_checks`, so the `Main` ruleset requires a pull request but none of these jobs. To make them required, add their check names there; a later rename in `ci.yml` then needs the same rename in the definition, or pull requests wait on a check that never reports.
+
+## Documentation
+
+`.github/workflows/docs.yml` calls the shared `docs.yml` workflow from `The-Running-Dev/GitHub-ActionTemplates`. On every pull request and push to `main`, it runs `build/Test-Documentation.ps1` and builds this site. On `main`, it also deploys the site to GitHub Pages.
+
+The gate checks links, anchors, that `docs/docs/index.md` still matches `README.md`, and the terminology in `.config/DocumentationRules.psd1`. Run it locally before pushing:
+
+```bash
+pwsh ./build/Test-Documentation.ps1
+```
+
+`README.md` is the source of the home page. After editing it, regenerate the page with `pwsh ./docs.ps1 -BuildOnly`, which also builds the site in Docker.

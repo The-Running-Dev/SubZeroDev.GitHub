@@ -1,0 +1,24 @@
+name: Docs
+
+# Builds the documentation site on every pull request and deploys it to GitHub Pages
+# from main, through the shared docs workflow. build/Test-Documentation.ps1 runs first,
+# so a broken link, a stale home page or a terminology error fails the build.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  docs:
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: The-Running-Dev/GitHub-ActionTemplates/.github/workflows/docs.yml@v1
+    with:
+      pre-build: ./build/Test-Documentation.ps1
