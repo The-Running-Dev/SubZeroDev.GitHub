@@ -16,7 +16,7 @@ node scripts/add-project-language.ts --path ../SubZeroDev.Thing --language node
 | Option | Default | Meaning |
 | --- | --- | --- |
 | `--path` | Required | The project folder. It must be the root of its Git repository. |
-| `--language` | Required | `node`, `python`, `csharp`, `rust`, `java` or `go`. |
+| `--language` | Required | `node`, `csharp`, `rust`, `java` or `go`. |
 | `--name` | Folder name | Name passed to the starter for package and module names. |
 
 ## What it changes

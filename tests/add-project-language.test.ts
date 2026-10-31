@@ -133,7 +133,7 @@ describe('addProjectLanguage on a project that already has a language', () => {
     const { project, add } = setup(t, 'node');
     const before = snapshot(project);
 
-    assert.throws(() => add('python'), /Nothing was changed/);
+    assert.throws(() => add('csharp'), /Nothing was changed/);
     assert.deepEqual(snapshot(project), before);
   });
 });

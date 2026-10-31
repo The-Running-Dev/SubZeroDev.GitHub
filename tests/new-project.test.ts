@@ -24,8 +24,7 @@ const commonFiles = [
   'docs/architecture.md', 'docs/decisions/0001-initial-project-setup.md', 'src/.gitkeep', 'tests/.gitkeep',
 ];
 const starterFiles = [
-  'package.json', 'tsconfig.json', 'eslint.config.js', 'requirements.txt', 'setup.py', 'pyproject.toml',
-  'src/index.ts', 'src/main.py', 'tests/index.test.ts', 'tests/test_main.py',
+  'package.json', 'tsconfig.json', 'eslint.config.js', 'src/index.ts', 'tests/index.test.ts',
 ];
 const read = (path: string) => readFileSync(path, 'utf8');
 const lines = (output: string) => (output ? output.split('\n') : []);
@@ -51,7 +50,6 @@ function assertSingleCleanCommit(project: string) {
 describe('createProject --local-only', () => {
   const cases: { language: Language; starterFile?: string; testCommand: string }[] = [
     { language: 'node', starterFile: 'package.json', testCommand: 'npm test' },
-    { language: 'python', starterFile: 'src/main.py', testCommand: 'pytest' },
     { language: 'csharp', testCommand: 'dotnet test' },
     { language: 'rust', testCommand: 'cargo test' },
     { language: 'java', testCommand: 'mvn test' },
@@ -183,11 +181,13 @@ describe('createProject refuses before writing anything', () => {
     assert.ok(!existsSync(project));
   });
 
-  test('rejects a language it does not know', (t) => {
-    const { ctx, project } = setup(t);
-    assert.throws(() => run(['--name', name, '--language', 'cobol', '--path', project, '--local-only'], ctx), /--language/);
-    assert.ok(!existsSync(project));
-  });
+  for (const language of ['cobol', 'python']) {
+    test(`rejects --language ${language}`, (t) => {
+      const { ctx, project } = setup(t);
+      assert.throws(() => run(['--name', name, '--language', language, '--path', project, '--local-only'], ctx), /--language/);
+      assert.ok(!existsSync(project));
+    });
+  }
 
   test('refuses a path that already exists', (t) => {
     const { create, project } = setup(t);

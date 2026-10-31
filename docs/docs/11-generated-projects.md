@@ -1,6 +1,6 @@
 ---
 title: Generated projects
-description: The files new-project.ts writes into every project, and what the Node.js and Python starters add.
+description: The files new-project.ts writes into every project, and what the Node.js starter adds.
 ---
 
 # Generated projects
@@ -64,7 +64,6 @@ SubZeroDev.Thing/
 | Language | Lines added |
 | --- | --- |
 | `node` | `node_modules/`, `.npm/`, `.next/`, `out/` |
-| `python` | `venv/`, `*.pyc`, `.pytest_cache/`, `dist/`, `build/` |
 | `csharp` | `bin/`, `obj/`, `*.user`, `.vs/` |
 | `java` | `target/`, `.gradle/`, `build/` |
 | `rust` | `target/`, `Cargo.lock` |
@@ -93,19 +92,6 @@ SubZeroDev.Thing/
 | `npm run dev` | `tsx watch src/index.ts` |
 
 `npm run smoke` in this repository exercises the whole starter; see [Testing and CI](12-testing-and-ci.md#node-smoke-test).
-
-## Python starter
-
-`scripts/starters/python.ts` sets up setuptools, pytest, black, pylint, mypy and flake8.
-
-| File | Content |
-| --- | --- |
-| `requirements.txt` | Production dependencies, empty to begin with. |
-| `requirements-dev.txt` | pytest, pytest-cov, black, pylint, mypy and flake8, at pinned versions. |
-| `setup.py`, `pyproject.toml` | Packaging, with the package named after the project, lowercased with other characters replaced by `_`. |
-| `pytest.ini`, `.flake8` | Test and lint settings. |
-| `src/__init__.py`, `src/main.py` | The package and its entry point. |
-| `tests/__init__.py`, `tests/test_main.py` | A first test. |
 
 ## Adding a starter
 

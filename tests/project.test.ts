@@ -76,7 +76,7 @@ describe('createProjectStructure', () => {
 });
 
 describe('writeGitignore', () => {
-  const markers: Record<string, string> = { python: '*.pyc', node: '.npm/', csharp: '*.user', java: '.gradle/', rust: 'Cargo.lock' };
+  const markers: Record<string, string> = { node: '.npm/', csharp: '*.user', java: '.gradle/', rust: 'Cargo.lock' };
 
   for (const [language, marker] of Object.entries(markers)) {
     test(`adds the ${language} section`, (t) => {
@@ -225,14 +225,6 @@ describe('runLanguageStarter', () => {
       assert.ok(existsSync(join(path, file)), file);
     }
     assert.equal(JSON.parse(read(path, 'package.json')).name, 'subzerodev-thing');
-  });
-
-  test('writes the Python starter', (t) => {
-    const path = tempDir(t);
-    assert.equal(runLanguageStarter(memoryLog(), 'python', path, 'Example.Project'), true);
-    for (const file of ['requirements.txt', 'requirements-dev.txt', 'setup.py', 'pyproject.toml', 'pytest.ini', '.flake8', 'src/__init__.py', 'src/main.py', 'tests/__init__.py', 'tests/test_main.py']) {
-      assert.ok(existsSync(join(path, file)), file);
-    }
   });
 });
 

@@ -32,7 +32,7 @@ node scripts/new-project.ts --name SubZeroDev.Thing --language node --descriptio
 | Option | Default | Meaning |
 | --- | --- | --- |
 | `--name` | Required | Repository and project name. Letters, digits, `.`, `_` and `-` only. |
-| `--language` | Undecided | `node`, `python`, `csharp`, `rust`, `java` or `go`. Leave it out to defer the choice. |
+| `--language` | Undecided | `node`, `csharp`, `rust`, `java` or `go`. Leave it out to defer the choice. |
 | `--path` | `../<name>` | Project folder. The default is a sibling of this repository. It must not exist. |
 | `--description` | Empty | Repository description. |
 | `--visibility` | `public` | `public` or `private`. |
@@ -53,7 +53,6 @@ Option values are case-insensitive for `--language`, `--visibility` and `--clien
 | Language | Starter | Install | Build | Test |
 | --- | --- | --- | --- | --- |
 | `node` | Yes | `npm install` | `npm run build` | `npm test` |
-| `python` | Yes | `pip install -r requirements.txt` | `python setup.py build` | `pytest` |
 | `csharp` | No | `dotnet restore` | `dotnet build` | `dotnet test` |
 | `rust` | No | `cargo fetch` | `cargo build --release` | `cargo test` |
 | `java` | No | `mvn install` | `mvn clean package` | `mvn test` |
@@ -79,10 +78,10 @@ Scaffold and publish a Node.js project:
 node scripts/new-project.ts --name SubZeroDev.Thing --language node --description 'Does a thing'
 ```
 
-Scaffold a Python project locally and publish it later:
+Scaffold a C# project locally and publish it later:
 
 ```bash
-node scripts/new-project.ts --name SubZeroDev.Thing --language python --local-only
+node scripts/new-project.ts --name SubZeroDev.Thing --language csharp --local-only
 node scripts/new-repository.ts --name SubZeroDev.Thing --path ../SubZeroDev.Thing
 ```
 
@@ -104,4 +103,4 @@ A refusal prints one line on stderr and exits with code 1. Common ones:
 | `repositories/<name>.yaml already exists; <name> is already managed here.` | A definition with that name exists. |
 | `Set TF_VAR_state_passphrase (16+ characters) before running, or pass --local-only.` | The passphrase is missing or too short. |
 | `'tofu' was not found. Install OpenTofu: …` | OpenTofu is not on `PATH`. |
-| `--language must be one of node, python, csharp, rust, java, go; got '<value>'.` | Unknown language. |
+| `--language must be one of node, csharp, rust, java, go; got '<value>'.` | Unknown language. |

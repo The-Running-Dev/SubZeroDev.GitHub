@@ -46,7 +46,7 @@ One command scaffolds the project, commits it on `main`, creates the repository 
 node scripts/new-project.ts --name SubZeroDev.Thing --language node --description 'Does a thing' --topics node,tooling
 ```
 
-The project goes next to this repository (`../SubZeroDev.Thing`) unless `--path` says otherwise. It gets `src/`, `tests/`, `docs/architecture.md`, a first ADR, `.gitignore`, `.gitattributes`, `.env.example`, `README.md`, `CLAUDE.md` and `AGENTS.md` (`--client claude-code` or `--client codex` for one of them), plus the language starter from `scripts/starters/<language>.ts`. `node` and `python` have starters; `csharp`, `rust`, `java` and `go` get the common files only.
+The project goes next to this repository (`../SubZeroDev.Thing`) unless `--path` says otherwise. It gets `src/`, `tests/`, `docs/architecture.md`, a first ADR, `.gitignore`, `.gitattributes`, `.env.example`, `README.md`, `CLAUDE.md` and `AGENTS.md` (`--client claude-code` or `--client codex` for one of them), plus the language starter from `scripts/starters/<language>.ts`. `node` has a starter; `csharp`, `rust`, `java` and `go` get the common files only.
 
 - `--skip-validation` skips running the build and test commands. A failure there is reported, not fatal.
 - `--local-only` stops after the commit. Publish later with `new-repository.ts --path`.
