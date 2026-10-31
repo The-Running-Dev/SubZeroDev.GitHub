@@ -1,7 +1,13 @@
 description: 'OpenTofu config that creates every The-Running-Dev repository with the standard settings and Main ruleset'
+homepage_url: 'https://the-running-dev.github.io/SubZeroDev.GitHub/'
 visibility: public
 topics:
   - 'opentofu'
   - 'github'
   - 'infrastructure-as-code'
+required_checks:
+  - context: 'CI result'
+    integration_id: 15368
+  - context: 'docs / Build'
+    integration_id: 15368
 auto_init: false
