@@ -2,6 +2,18 @@
 
 Every GitHub repository under `The-Running-Dev` gets the same settings and the same `Main` ruleset, defined once in OpenTofu. A new project is one command; nothing is set by hand in the GitHub UI.
 
+## Documentation
+
+Each part has its own page on the [documentation site](https://the-running-dev.github.io/SubZeroDev.GitHub/):
+
+- [Getting started](https://the-running-dev.github.io/SubZeroDev.GitHub/getting-started): tools, the state passphrase and the GitHub token.
+- [The repository standard](https://the-running-dev.github.io/SubZeroDev.GitHub/repository-standard) and [repository definitions](https://the-running-dev.github.io/SubZeroDev.GitHub/repository-definitions): what every repository gets, and the keys of `repositories/<name>.yaml`.
+- [Create a project](https://the-running-dev.github.io/SubZeroDev.GitHub/new-project), [create a repository](https://the-running-dev.github.io/SubZeroDev.GitHub/new-repository) and [add a project language](https://the-running-dev.github.io/SubZeroDev.GitHub/add-project-language): the three scripts, option by option.
+- [Plan guards](https://the-running-dev.github.io/SubZeroDev.GitHub/plan-guards): what is checked before every apply.
+- [OpenTofu configuration](https://the-running-dev.github.io/SubZeroDev.GitHub/opentofu-configuration) and [day-to-day operations](https://the-running-dev.github.io/SubZeroDev.GitHub/operations): changing, importing and archiving repositories.
+- [Generated projects](https://the-running-dev.github.io/SubZeroDev.GitHub/generated-projects): the files a new project starts with.
+- [Testing and CI](https://the-running-dev.github.io/SubZeroDev.GitHub/testing-and-ci) and [script internals](https://the-running-dev.github.io/SubZeroDev.GitHub/script-internals): for changing this repository.
+
 ## What every repository gets
 
 `modules/repository/main.tf` is the standard. In short:
