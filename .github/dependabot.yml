@@ -1,0 +1,20 @@
+version: 2
+
+updates:
+  # Actions are pinned to commit SHAs; Dependabot moves the pin and its version comment together.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ['*']
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    ignore:
+      # @types/node tracks the oldest supported Node.js (engines: >=22.18), not the newest.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']

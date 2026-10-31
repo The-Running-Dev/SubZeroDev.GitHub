@@ -70,10 +70,11 @@ The workspace is deleted afterwards, whether the test passes or fails.
 | `Test` | Ubuntu, Windows and macOS × Node.js 22 and 24 | `npm ci`, `npm run typecheck`, `npm test` |
 | `Node smoke` | Ubuntu, Windows and macOS × Node.js 22 and 24 | `npm ci`, `npm run smoke` |
 | `OpenTofu` | Ubuntu, Node.js 24, OpenTofu from `opentofu/setup-opentofu` | `npm ci`, `npm run test:tofu` |
+| `CI result` | Ubuntu, after the other three | Fails unless every job above passed. |
 
-The workflow starts from `permissions: {}`, and each job asks only for `contents: read`. Every action is pinned to a full commit SHA, and checkout does not keep credentials.
+The workflow starts from `permissions: {}`, and each job asks only for `contents: read`. Every action is pinned to a full commit SHA, and checkout does not keep credentials. `.github/dependabot.yml` opens a weekly pull request to move those pins, and another for the npm packages. `@types/node` stays on the major version of the oldest supported Node.js.
 
-This repository's own definition, `repositories/SubZeroDev.GitHub.yaml`, lists no `required_checks`, so the `Main` ruleset requires a pull request but none of these jobs. To make them required, add their check names there; a later rename in `ci.yml` then needs the same rename in the definition, or pull requests wait on a check that never reports.
+This repository's own definition, `repositories/SubZeroDev.GitHub.yaml`, requires two checks: `CI result` and `docs / Build`. Requiring `CI result` instead of each matrix job means a job can be added, renamed or moved to another runner without changing the definition. Renaming `CI result` itself, or the `Build` job of the documentation workflow, needs the same rename in the definition, or pull requests wait on a check that never reports.
 
 ## Documentation
 
