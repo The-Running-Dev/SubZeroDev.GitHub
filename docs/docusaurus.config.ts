@@ -11,18 +11,21 @@ import type * as Preset from '@docusaurus/preset-classic';
  * settings when it deploys; without them (pull requests, local preview) the
  * site is built for the root of https://example.com.
  *
- * Placeholder title/url/tagline — edit to taste. Broken-link checks are 'warn'
- * (not 'throw') to keep authoring frictionless; flip to 'throw' to gate builds.
+ * Broken links fail the build, so the docs workflow catches a link between pages
+ * that build/Test-Documentation.ps1 does not check.
  */
+const repository = 'https://github.com/The-Running-Dev/SubZeroDev.GitHub';
+
 const config: Config = {
   title: 'SubZeroDev.GitHub',
   tagline: 'Every The-Running-Dev GitHub repository, defined once in OpenTofu, and the scripts that scaffold and publish new projects.',
   url: process.env.DOCS_URL || 'https://example.com',
   baseUrl: `/${process.env.DOCS_BASE_URL ?? ''}/`.replace(/\/{2,}/g, '/'),
-  onBrokenLinks: 'warn',
+  onBrokenLinks: 'throw',
+  onBrokenAnchors: 'throw',
   markdown: {
     hooks: {
-      onBrokenMarkdownLinks: 'warn'
+      onBrokenMarkdownLinks: 'throw'
     }
   },
   i18n: { defaultLocale: 'en', locales: ['en'] },
@@ -32,7 +35,10 @@ const config: Config = {
       {
         docs: {
           sidebarPath: './sidebar.ts',
-          routeBasePath: '/'
+          routeBasePath: '/',
+          // index.md is generated from README.md, so its edits belong there.
+          editUrl: ({ docPath }) =>
+            docPath === 'index.md' ? `${repository}/edit/main/README.md` : `${repository}/edit/main/docs/docs/${docPath}`
         },
         blog: false
       } satisfies Preset.Options
@@ -48,10 +54,22 @@ const config: Config = {
           sidebarId: 'docs',
           position: 'left',
           label: 'Docs'
+        },
+        {
+          href: repository,
+          label: 'GitHub',
+          position: 'right'
         }
       ]
     },
-    footer: { style: 'dark', links: [] }
+    footer: {
+      style: 'dark',
+      links: [
+        { label: 'Repository', href: repository },
+        { label: 'Issues', href: `${repository}/issues` },
+        { label: 'Pull requests', href: `${repository}/pulls` }
+      ]
+    }
   } satisfies Preset.ThemeConfig
 };
 

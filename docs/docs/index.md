@@ -7,6 +7,18 @@ sidebar_position: 1
 
 Every GitHub repository under `The-Running-Dev` gets the same settings and the same `Main` ruleset, defined once in OpenTofu. A new project is one command; nothing is set by hand in the GitHub UI.
 
+## Documentation
+
+Each part has its own page on the [documentation site](/):
+
+- [Getting started](/getting-started): tools, the state passphrase and the GitHub token.
+- [The repository standard](/repository-standard) and [repository definitions](/repository-definitions): what every repository gets, and the keys of `repositories/<name>.yaml`.
+- [Create a project](/new-project), [create a repository](/new-repository) and [add a project language](/add-project-language): the three scripts, option by option.
+- [Plan guards](/plan-guards): what is checked before every apply.
+- [OpenTofu configuration](/opentofu-configuration) and [day-to-day operations](/operations): changing, importing and archiving repositories.
+- [Generated projects](/generated-projects): the files a new project starts with.
+- [Testing and CI](/testing-and-ci) and [script internals](/script-internals): for changing this repository.
+
 ## What every repository gets
 
 `modules/repository/main.tf` is the standard. In short:
