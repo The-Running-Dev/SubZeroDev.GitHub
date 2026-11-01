@@ -10,6 +10,9 @@
 // content, or a commands section was edited or removed, nothing is written and each
 // conflict is listed. Running it again with the same language changes nothing.
 //
+// When the project already has a Graphify code graph (graphify-out/), it is rebuilt after
+// the change, so it includes the starter's code.
+//
 // Nothing is committed, so the history and the current branch stay as they are; review
 // the changes and commit them through the usual pull request.
 //
@@ -24,7 +27,7 @@ import { writeProjectFile } from './lib/files.ts';
 import { choiceOption, parseOptions, requiredOption } from './lib/options.ts';
 import { formatCommand } from './lib/process.ts';
 import {
-  assertCommandAvailable, assertName, gitignoreSection, languageCommands, languages, runLanguageStarter,
+  assertCommandAvailable, assertName, buildCodeGraph, gitignoreSection, languageCommands, languages, runLanguageStarter,
   updateCommandsSection,
 } from './lib/project.ts';
 import type { Language, SectionStyle } from './lib/project.ts';
@@ -126,6 +129,9 @@ export function addProjectLanguage(options: LanguageOptions, ctx: Context): void
   } finally {
     rmSync(staging, { recursive: true, force: true });
   }
+
+  // Only a project that already has a graph gets a new one; older projects may not ignore graphify-out/.
+  if (existsSync(join(path, 'graphify-out'))) buildCodeGraph(ctx.run, log, path, ctx.env);
 
   log.success(`${language} added to ${name}. Nothing was committed: review the changes, run ${formatCommand(commands.install)}, ${formatCommand(commands.build)} and ${formatCommand(commands.test)}, then commit.`);
 }
