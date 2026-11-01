@@ -6,12 +6,11 @@
 //
 //   node tests/node-smoke.ts
 
-import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { defaultContext } from '../scripts/lib/context.ts';
-import { run } from '../scripts/lib/process.ts';
+import { run, runCommand } from '../scripts/lib/process.ts';
 import type { Runner } from '../scripts/lib/process.ts';
 import { main } from '../scripts/lib/runtime.ts';
 import { createProject } from '../scripts/new-project.ts';
@@ -24,15 +23,15 @@ function git(cwd: string, ...args: string[]): string {
   return result.stdout.trim();
 }
 
-// Fixed npm command lines only; a shell finds npm.cmd on Windows.
-function npm(cwd: string, args: string, options: { check?: boolean } = {}): { code: number; output: string } {
-  const result = spawnSync(`npm ${args}`, { cwd, shell: true, encoding: 'utf8', windowsHide: true });
-  const output = `${result.stdout ?? ''}${result.stderr ?? ''}`;
-  if ((options.check ?? true) && result.status !== 0) {
+// Runs npm the way the scaffold's validation does, without a shell.
+function npm(cwd: string, args: string[], options: { check?: boolean } = {}): { code: number; output: string } {
+  const result = runCommand(['npm', ...args], { cwd });
+  const output = `${result.stdout}${result.stderr}`;
+  if ((options.check ?? true) && result.code !== 0) {
     process.stdout.write(output);
-    throw new Error(`Command failed (${result.status}): npm ${args}`);
+    throw new Error(`Command failed (${result.code}): npm ${args.join(' ')}`);
   }
-  return { code: result.status ?? 1, output };
+  return { code: result.code, output };
 }
 
 // Fail locally if scaffolding ever regresses into trying to publish.
@@ -66,7 +65,7 @@ function smoke(): void {
       if (!existsSync(join(project, file))) throw new Error(`Missing client instructions: ${file}`);
     }
 
-    for (const args of ['install --no-audit --no-fund', 'run build', 'test', 'run lint']) {
+    for (const args of [['install', '--no-audit', '--no-fund'], ['run', 'build'], ['test'], ['run', 'lint']]) {
       process.stdout.write(npm(project, args).output);
     }
 
@@ -74,7 +73,7 @@ function smoke(): void {
     const failingTest = join(project, 'tests/smoke-failure.test.ts');
     writeFileSync(failingTest, "import assert from 'node:assert/strict';\nimport { test } from 'node:test';\ntest('smoke failure', () => { assert.equal(1, 2); });\n");
     try {
-      const result = npm(project, 'test', { check: false });
+      const result = npm(project, ['test'], { check: false });
       if (result.code === 0 || !result.output.includes('ERR_ASSERTION')) {
         process.stdout.write(result.output);
         throw new Error('npm test did not reject the intentional failing assertion as expected.');
@@ -87,7 +86,7 @@ function smoke(): void {
     const lintFailure = join(project, 'src/smoke-lint-failure.ts');
     writeFileSync(lintFailure, 'const unused: number = 1;\n');
     try {
-      const result = npm(project, 'run lint', { check: false });
+      const result = npm(project, ['run', 'lint'], { check: false });
       if (result.code === 0 || !result.output.includes('@typescript-eslint/no-unused-vars')) {
         process.stdout.write(result.output);
         throw new Error('npm run lint did not reject the unused TypeScript variable as expected.');
@@ -105,7 +104,7 @@ function smoke(): void {
 
     // Starting without source proves both the entry point and its imports use dist/.
     renameSync(join(project, 'src'), join(workspace, 'source-away'));
-    const startup = npm(project, 'start');
+    const startup = npm(project, ['start']);
     process.stdout.write(startup.output);
     if (!startup.output.split(/\r?\n/).includes(`Welcome to ${name}`)) {
       throw new Error('The compiled application did not print its greeting.');

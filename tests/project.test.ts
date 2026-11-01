@@ -11,10 +11,10 @@ import {
   writeGitattributes, writeGitignore, writeReadme,
 } from '../scripts/lib/project.ts';
 import type { Commands, Language } from '../scripts/lib/project.ts';
-import { run, runShell } from '../scripts/lib/process.ts';
+import { run, runCommand } from '../scripts/lib/process.ts';
 import { git, memoryLog, tempDir } from './helpers.ts';
 
-const commands: Commands = { install: 'install-cmd', build: 'build-cmd', test: 'test-cmd', lint: 'lint-cmd', run: 'run-cmd' };
+const commands: Commands = { install: ['install-cmd'], build: ['build-cmd'], test: ['test-cmd'], lint: ['lint-cmd'], run: ['run-cmd'] };
 const commonFiles = ['README.md', 'CLAUDE.md', 'AGENTS.md', 'docs/architecture.md', 'docs/decisions/0001-initial-project-setup.md'];
 
 function writeCommonFiles(path: string, projectCommands?: Commands): void {
@@ -259,31 +259,33 @@ describe('runLanguageStarter', () => {
 describe('testProjectCommand', () => {
   test('is true when the command exits 0', (t) => {
     const path = tempDir(t);
-    assert.equal(testProjectCommand(runShell, memoryLog(), path, 'node -e "console.log(1)"'), true);
+    assert.equal(testProjectCommand(runCommand, memoryLog(), path, ['node', '-e', 'console.log(1)']), true);
   });
 
   test('is false on a non-zero exit', (t) => {
     const path = tempDir(t);
     const log = memoryLog();
-    assert.equal(testProjectCommand(runShell, log, path, 'node -e "process.exit(3)"'), false);
+    assert.equal(testProjectCommand(runCommand, log, path, ['node', '-e', 'process.exit(3)']), false);
     assert.match(log.text(), /exited with code 3/);
   });
 
   test('is false when the runner throws', (t) => {
     const path = tempDir(t);
     const log = memoryLog();
-    assert.equal(testProjectCommand(() => { throw new Error('boom'); }, log, path, 'anything'), false);
+    assert.equal(testProjectCommand(() => { throw new Error('boom'); }, log, path, ['anything']), false);
     assert.match(log.text(), /'anything' failed: boom/);
   });
 
   test('is false for a command that does not exist', (t) => {
     const path = tempDir(t);
-    assert.equal(testProjectCommand(runShell, memoryLog(), path, 'definitely-not-a-command-xyz'), false);
+    const log = memoryLog();
+    assert.equal(testProjectCommand(runCommand, log, path, ['definitely-not-a-command-xyz']), false);
+    assert.match(log.text(), /not found on PATH/);
   });
 
   test('runs in the project folder', (t) => {
     const path = tempDir(t);
-    testProjectCommand(runShell, memoryLog(), path, 'node -e "require(\'fs\').writeFileSync(\'ran.txt\', \'\')"');
+    testProjectCommand(runCommand, memoryLog(), path, ['node', '-e', "require('fs').writeFileSync('ran.txt', '')"]);
     assert.ok(existsSync(join(path, 'ran.txt')));
   });
 });

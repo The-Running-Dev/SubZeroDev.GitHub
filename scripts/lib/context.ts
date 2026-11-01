@@ -2,8 +2,8 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createLog } from './log.ts';
 import type { Log } from './log.ts';
-import { run, runShell } from './process.ts';
-import type { Runner, ShellRunner } from './process.ts';
+import { run, runCommand } from './process.ts';
+import type { CommandRunner, Runner } from './process.ts';
 
 // Everything an entry point touches outside its arguments. Tests pass their own.
 export interface Context {
@@ -11,7 +11,7 @@ export interface Context {
   root: string;
   env: NodeJS.ProcessEnv;
   run: Runner;
-  shell: ShellRunner;
+  runCommand: CommandRunner;
   log: Log;
 }
 
@@ -20,7 +20,7 @@ export function defaultContext(): Context {
     root: resolve(fileURLToPath(new URL('../..', import.meta.url))),
     env: process.env,
     run,
-    shell: runShell,
+    runCommand,
     log: createLog(),
   };
 }

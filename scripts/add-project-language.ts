@@ -22,6 +22,7 @@ import type { Context } from './lib/context.ts';
 import { defaultContext } from './lib/context.ts';
 import { writeProjectFile } from './lib/files.ts';
 import { choiceOption, parseOptions, requiredOption } from './lib/options.ts';
+import { formatCommand } from './lib/process.ts';
 import {
   assertCommandAvailable, assertName, gitignoreSection, languageCommands, languages, runLanguageStarter,
   updateCommandsSection,
@@ -126,7 +127,7 @@ export function addProjectLanguage(options: LanguageOptions, ctx: Context): void
     rmSync(staging, { recursive: true, force: true });
   }
 
-  log.success(`${language} added to ${name}. Nothing was committed: review the changes, run ${commands.install}, ${commands.build} and ${commands.test}, then commit.`);
+  log.success(`${language} added to ${name}. Nothing was committed: review the changes, run ${formatCommand(commands.install)}, ${formatCommand(commands.build)} and ${formatCommand(commands.test)}, then commit.`);
 }
 
 export const cliOptions = {

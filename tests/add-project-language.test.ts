@@ -8,6 +8,7 @@ import { dirname, join } from 'node:path';
 import { describe, test } from 'node:test';
 import type { TestContext } from 'node:test';
 import { addProjectLanguage, run } from '../scripts/add-project-language.ts';
+import { formatCommand } from '../scripts/lib/process.ts';
 import { languageCommands } from '../scripts/lib/project.ts';
 import type { Language } from '../scripts/lib/project.ts';
 import { createProject } from '../scripts/new-project.ts';
@@ -110,7 +111,7 @@ describe('addProjectLanguage on a project created without a language', () => {
       assert.doesNotMatch(add(language), /starter yet/);
       assert.ok(existsSync(join(project, file)), file);
       assert.match(read(join(project, '.gitignore')), /specific/);
-      assert.ok(read(join(project, 'README.md')).includes(languageCommands(language).test));
+      assert.ok(read(join(project, 'README.md')).includes(formatCommand(languageCommands(language).test)));
     });
   }
 

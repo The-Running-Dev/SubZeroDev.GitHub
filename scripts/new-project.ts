@@ -25,6 +25,7 @@ import { dirname, join, resolve } from 'node:path';
 import type { Context } from './lib/context.ts';
 import { defaultContext } from './lib/context.ts';
 import { choiceOption, listOption, parseOptions, requiredOption } from './lib/options.ts';
+import { formatCommand } from './lib/process.ts';
 import {
   assertCommandAvailable, assertName, createInitialCommit, createProjectStructure, initializeProjectGit,
   languageCommands, languages, runLanguageStarter, testProjectCommand, writeAdr, writeAgentsInstructions,
@@ -105,10 +106,10 @@ export function createProject(options: ProjectOptions, ctx: Context): void {
   }
 
   if (commands && !options.skipValidation) {
-    if (testProjectCommand(ctx.shell, log, path, commands.build) && testProjectCommand(ctx.shell, log, path, commands.test)) {
+    if (testProjectCommand(ctx.runCommand, log, path, commands.build) && testProjectCommand(ctx.runCommand, log, path, commands.test)) {
       log.success('Build and tests passed');
     } else {
-      log.warn(`Build or tests did not pass. Dependencies may not be installed yet: ${commands.install}`);
+      log.warn(`Build or tests did not pass. Dependencies may not be installed yet: ${formatCommand(commands.install)}`);
     }
   }
 

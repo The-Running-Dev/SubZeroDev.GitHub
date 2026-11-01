@@ -9,9 +9,8 @@ import { fileURLToPath } from 'node:url';
 import type { TestContext } from 'node:test';
 import type { Context } from '../scripts/lib/context.ts';
 import type { Log } from '../scripts/lib/log.ts';
-import { run } from '../scripts/lib/process.ts';
-import type { ProcessResult, Runner, ShellRunner } from '../scripts/lib/process.ts';
-import { runShell } from '../scripts/lib/process.ts';
+import { formatCommand, run, runCommand } from '../scripts/lib/process.ts';
+import type { CommandRunner, ProcessResult, Runner } from '../scripts/lib/process.ts';
 
 export const repositoryRoot = resolve(fileURLToPath(new URL('..', import.meta.url)));
 
@@ -156,19 +155,21 @@ export function tofuMock(options: { repositoryName?: string; cloneUrl?: string }
   return { mock, runner };
 }
 
-export interface ShellCall {
+export interface CommandCall {
+  // As formatCommand shows it, such as 'npm test'.
   command: string;
-  cwd: string;
+  cwd: string | undefined;
 }
 
 // Records the project commands it is asked to run; each exits with exitCodes[command] or 0.
-export function shellMock(exitCodes: Record<string, number> = {}): { calls: ShellCall[]; shell: ShellRunner } {
-  const calls: ShellCall[] = [];
+export function commandMock(exitCodes: Record<string, number> = {}): { calls: CommandCall[]; runCommand: CommandRunner } {
+  const calls: CommandCall[] = [];
   return {
     calls,
-    shell: (command, cwd) => {
-      calls.push({ command, cwd });
-      return { code: exitCodes[command] ?? 0, stdout: '', stderr: '', found: true };
+    runCommand: (command, options = {}) => {
+      const display = formatCommand(command);
+      calls.push({ command: display, cwd: options.cwd });
+      return { code: exitCodes[display] ?? 0, stdout: '', stderr: '', found: true };
     },
   };
 }
@@ -192,5 +193,5 @@ export function testEnv(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
 
 export function testContext(root: string, overrides: Partial<Context> = {}): Context & { log: MemoryLog } {
   const log = memoryLog();
-  return { root, env: testEnv(), run, shell: runShell, ...overrides, log: (overrides.log as MemoryLog | undefined) ?? log };
+  return { root, env: testEnv(), run, runCommand, ...overrides, log: (overrides.log as MemoryLog | undefined) ?? log };
 }
