@@ -18,3 +18,26 @@ updates:
       # @types/node tracks the oldest supported Node.js (engines: >=22.18), not the newest.
       - dependency-name: '@types/node'
         update-types: ['version-update:semver-major']
+
+  # The versions the starters write into new projects. scripts/starters/versions.ts reads them,
+  # and the smoke tests build a project with each update before it can merge.
+  - package-ecosystem: maven
+    directory: /scripts/starters/versions
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: nuget
+    directory: /scripts/starters/versions
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: npm
+    directory: /scripts/starters/versions
+    schedule:
+      interval: weekly
+    # The ranges are caret ranges, so only a new major needs a change.
+    versioning-strategy: increase-if-necessary
+    ignore:
+      # As above: the starter's engines floor is Node.js 22.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']

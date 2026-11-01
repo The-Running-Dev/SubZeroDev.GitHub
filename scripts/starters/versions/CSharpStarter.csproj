@@ -1,0 +1,10 @@
+<!-- The versions the C# starter (csharp.ts) writes into a new project's test project. Nothing
+     builds this file: Dependabot updates it, and the C# starter smoke test checks each update. -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" Version="4.0.2" />
+  </ItemGroup>
+</Project>

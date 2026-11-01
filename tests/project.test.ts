@@ -13,6 +13,7 @@ import {
 import type { Commands, Language } from '../scripts/lib/project.ts';
 import { run, runCommand } from '../scripts/lib/process.ts';
 import type { Runner } from '../scripts/lib/process.ts';
+import { mavenVersion, npmDevDependencies, nugetVersion } from '../scripts/starters/versions.ts';
 import { git, memoryLog, pathWithGraphify, tempDir, testEnv } from './helpers.ts';
 
 const commands: Commands = { install: ['install-cmd'], build: ['build-cmd'], test: ['test-cmd'], lint: ['lint-cmd'], run: ['run-cmd'] };
@@ -28,6 +29,12 @@ function writeCommonFiles(path: string, projectCommands?: Commands): void {
 
 function read(path: string, relativePath: string): string {
   return readFileSync(join(path, relativePath), 'utf8');
+}
+
+// Each artifactId or package id in a versions manifest, with its version.
+function manifestPairs(file: string, pattern: RegExp): [string, string][] {
+  const manifest = readFileSync(new URL(`../scripts/starters/versions/${file}`, import.meta.url), 'utf8');
+  return [...manifest.matchAll(pattern)].map((m) => [m[1], m[2]]);
 }
 
 function fenceCount(content: string): number {
@@ -233,7 +240,9 @@ describe('runLanguageStarter', () => {
     for (const file of ['package.json', 'tsconfig.json', 'tsconfig.test.json', 'eslint.config.js', '.prettierrc.json', 'src/index.ts', 'src/greeting.ts', 'tests/index.test.ts']) {
       assert.ok(existsSync(join(path, file)), file);
     }
-    assert.equal(JSON.parse(read(path, 'package.json')).name, 'subzerodev-thing');
+    const pkg = JSON.parse(read(path, 'package.json'));
+    assert.equal(pkg.name, 'subzerodev-thing');
+    assert.deepEqual(pkg.devDependencies, npmDevDependencies());
   });
 
   test('writes the C# starter', (t) => {
@@ -244,6 +253,11 @@ describe('runLanguageStarter', () => {
     }
     assert.match(read(path, 'src/Greeting.cs'), /^namespace SubZeroDev\.Thing;$/m);
     assert.match(read(path, 'global.json'), /Microsoft\.Testing\.Platform/);
+    // Every package Dependabot updates reaches the project.
+    const tests = read(path, 'tests/SubZeroDev.Thing.Tests.csproj');
+    const pairs = manifestPairs('CSharpStarter.csproj', /<PackageReference\s+Include="([^"]+)"\s+Version="([^"]+)"/g);
+    assert.ok(pairs.length > 0);
+    for (const [id, version] of pairs) assert.ok(tests.includes(`<PackageReference Include="${id}" Version="${version}" />`), id);
   });
 
   test('writes the Rust starter', (t) => {
@@ -260,7 +274,14 @@ describe('runLanguageStarter', () => {
     for (const file of ['pom.xml', '.mvn/maven.config', 'src/main/java/subzerodev/thing/App.java', 'src/main/java/subzerodev/thing/Greeting.java', 'src/test/java/subzerodev/thing/GreetingTest.java']) {
       assert.ok(existsSync(join(path, file)), file);
     }
-    assert.match(read(path, 'pom.xml'), /<mainClass>subzerodev\.thing\.App<\/mainClass>/);
+    const pom = read(path, 'pom.xml');
+    assert.match(pom, /<mainClass>subzerodev\.thing\.App<\/mainClass>/);
+    // Every artifact Dependabot updates reaches the project. The first pair is the manifest's own.
+    const pairs = manifestPairs('pom.xml', /<artifactId>([^<]+)<\/artifactId>\s*<version>([^<]+)<\/version>/g).slice(1);
+    assert.ok(pairs.length > 0);
+    for (const [artifactId, version] of pairs) {
+      assert.match(pom, new RegExp(`<artifactId>${artifactId}</artifactId>\\s*<version>${version.replace(/\./g, '\\.')}</version>`), artifactId);
+    }
   });
 
   test('writes the Go starter', (t) => {
@@ -269,6 +290,29 @@ describe('runLanguageStarter', () => {
     for (const file of ['go.mod', 'main.go', 'greeting.go', 'greeting_test.go']) assert.ok(existsSync(join(path, file)), file);
     assert.match(read(path, 'go.mod'), /^module subzerodev-thing$/m);
     assert.match(read(path, 'greeting_test.go'), /^\tgot := greeting/m);
+  });
+});
+
+describe('starter versions', () => {
+  test('mavenVersion pairs each artifactId with the version after it', () => {
+    const version = mavenVersion(`<plugin>
+      <groupId>org.apache.maven.plugins</groupId>
+      <artifactId>maven-jar-plugin</artifactId>
+      <version>3.5.1</version>
+    </plugin>
+    <artifactId>no-version</artifactId>`);
+    assert.equal(version('maven-jar-plugin'), '3.5.1');
+    assert.throws(() => version('no-version'), /No version for no-version in scripts\/starters\/versions\/pom\.xml/);
+  });
+
+  test('nugetVersion reads PackageReference versions', () => {
+    const version = nugetVersion('<ItemGroup>\n  <PackageReference Include="xunit.v3" Version="4.0.2" />\n</ItemGroup>');
+    assert.equal(version('xunit.v3'), '4.0.2');
+    assert.throws(() => version('Moq'), /No version for Moq in scripts\/starters\/versions\/CSharpStarter\.csproj/);
+  });
+
+  test('npmDevDependencies returns the devDependencies as written', () => {
+    assert.deepEqual(npmDevDependencies('{"devDependencies":{"tsx":"^4.0.0"}}'), { tsx: '^4.0.0' });
   });
 });
 

@@ -3,11 +3,13 @@
 import { writeProjectFile } from '../lib/files.ts';
 import type { Log } from '../lib/log.ts';
 import { javaPackage, kebabName } from './names.ts';
+import { mavenVersion } from './versions.ts';
 
 export function javaStarter(log: Log, projectPath: string, projectName: string): void {
   const write = (relativePath: string, content: string) => writeProjectFile(projectPath, relativePath, content, { force: true });
   log.step('Setting up Java starter files');
 
+  const version = mavenVersion();
   const pkg = javaPackage(projectName);
   const pkgPath = pkg.replace(/\./g, '/');
   write('pom.xml', `<?xml version="1.0" encoding="UTF-8"?>
@@ -32,7 +34,7 @@ export function javaStarter(log: Log, projectPath: string, projectName: string):
       <dependency>
         <groupId>org.junit</groupId>
         <artifactId>junit-bom</artifactId>
-        <version>6.1.3</version>
+        <version>${version('junit-bom')}</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
@@ -52,15 +54,15 @@ export function javaStarter(log: Log, projectPath: string, projectName: string):
     <plugins>
       <plugin>
         <artifactId>maven-clean-plugin</artifactId>
-        <version>3.5.0</version>
+        <version>${version('maven-clean-plugin')}</version>
       </plugin>
       <plugin>
         <artifactId>maven-resources-plugin</artifactId>
-        <version>3.5.0</version>
+        <version>${version('maven-resources-plugin')}</version>
       </plugin>
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.16.0</version>
+        <version>${version('maven-compiler-plugin')}</version>
         <configuration>
           <compilerArgs>
             <arg>-Xlint:all</arg>
@@ -70,11 +72,11 @@ export function javaStarter(log: Log, projectPath: string, projectName: string):
       </plugin>
       <plugin>
         <artifactId>maven-surefire-plugin</artifactId>
-        <version>3.6.1</version>
+        <version>${version('maven-surefire-plugin')}</version>
       </plugin>
       <plugin>
         <artifactId>maven-jar-plugin</artifactId>
-        <version>3.5.1</version>
+        <version>${version('maven-jar-plugin')}</version>
         <configuration>
           <archive>
             <manifest>
@@ -85,16 +87,16 @@ export function javaStarter(log: Log, projectPath: string, projectName: string):
       </plugin>
       <plugin>
         <artifactId>maven-install-plugin</artifactId>
-        <version>3.2.0</version>
+        <version>${version('maven-install-plugin')}</version>
       </plugin>
       <plugin>
         <artifactId>maven-checkstyle-plugin</artifactId>
-        <version>3.6.0</version>
+        <version>${version('maven-checkstyle-plugin')}</version>
         <dependencies>
           <dependency>
             <groupId>com.puppycrawl.tools</groupId>
             <artifactId>checkstyle</artifactId>
-            <version>14.4.0</version>
+            <version>${version('checkstyle')}</version>
           </dependency>
         </dependencies>
         <configuration>
