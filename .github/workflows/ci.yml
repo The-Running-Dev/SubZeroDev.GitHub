@@ -42,7 +42,13 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run lint
-      - run: npm test
+
+      # One cell measures coverage; the floors in package.json sit just under the current figures,
+      # so new code that lands untested fails here.
+      - if: matrix.os != 'ubuntu-latest' || matrix.node != '24'
+        run: npm test
+      - if: matrix.os == 'ubuntu-latest' && matrix.node == '24'
+        run: npm run test:coverage
 
   node-smoke:
     name: Node smoke (${{ matrix.os }}, Node ${{ matrix.node }})
