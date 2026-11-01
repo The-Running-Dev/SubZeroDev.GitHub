@@ -3,6 +3,7 @@
 import { writeProjectFile } from '../lib/files.ts';
 import type { Log } from '../lib/log.ts';
 import { dotnetNamespace } from './names.ts';
+import { nugetVersion } from './versions.ts';
 
 export function csharpStarter(log: Log, projectPath: string, projectName: string): void {
   const write = (relativePath: string, content: string) => writeProjectFile(projectPath, relativePath, content, { force: true });
@@ -73,7 +74,7 @@ Console.WriteLine(Greeting.For("${projectName}"));`);
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="xunit.v3" Version="4.0.2" />
+    <PackageReference Include="xunit.v3" Version="${nugetVersion()('xunit.v3')}" />
     <Using Include="Xunit" />
   </ItemGroup>
   <ItemGroup>

@@ -83,11 +83,11 @@ Like the Node smoke test, it refuses to run if the scaffolder calls `tofu` or `g
 | --- | --- | --- |
 | `Test` | Ubuntu, Windows and macOS × Node.js 22 and 24 | `npm ci`, `npm run typecheck`, `npm test` |
 | `Node smoke` | Ubuntu, Windows and macOS × Node.js 22 and 24 | `npm ci`, `npm run smoke` |
-| `Starter smoke` | Ubuntu, Windows and macOS × `csharp`, `rust`, `java` and `go`, Node.js 24 | The toolchain from `setup-dotnet`, `setup-java`, `setup-go` or the runner's rustup, a `~/.nuget/packages` cache for C# keyed on `scripts/starters/csharp.ts` and a `~/.m2/repository` cache for Java keyed on `scripts/starters/java.ts`, then `npm ci`, `npm run smoke:starter -- <language>` |
+| `Starter smoke` | Ubuntu, Windows and macOS × `csharp`, `rust`, `java` and `go`, Node.js 24 | The toolchain from `setup-dotnet`, `setup-java`, `setup-go` or the runner's rustup, a `~/.nuget/packages` cache for C# keyed on `scripts/starters/versions/CSharpStarter.csproj` and a `~/.m2/repository` cache for Java keyed on `scripts/starters/versions/pom.xml`, then `npm ci`, `npm run smoke:starter -- <language>` |
 | `OpenTofu` | Ubuntu, Node.js 24, OpenTofu from `opentofu/setup-opentofu` | `npm ci`, `npm run test:tofu` |
 | `CI result` | Ubuntu, after the other four | Fails unless every job above passed. |
 
-The workflow starts from `permissions: {}`, and each job asks only for `contents: read`. Every action is pinned to a full commit SHA, and checkout does not keep credentials. `.github/dependabot.yml` opens a weekly pull request to move those pins, and another for the npm packages. `@types/node` stays on the major version of the oldest supported Node.js.
+The workflow starts from `permissions: {}`, and each job asks only for `contents: read`. Every action is pinned to a full commit SHA, and checkout does not keep credentials. `.github/dependabot.yml` opens a weekly pull request to move those pins, and another for the npm packages. `@types/node` stays on the major version of the oldest supported Node.js. It also updates the versions the Node.js, C# and Java starters write, from the manifests in `scripts/starters/versions/`; the starter's smoke test then builds a project with each update before it merges. The npm starter versions are caret ranges, so only a new major opens a pull request.
 
 This repository's own definition, `repositories/SubZeroDev.GitHub.yaml`, requires two checks: `CI result` and `docs / Build`. Requiring `CI result` instead of each matrix job means a job can be added, renamed or moved to another runner without changing the definition. Renaming `CI result` itself, or the `Build` job of the documentation workflow, needs the same rename in the definition, or pull requests wait on a check that never reports.
 

@@ -2,6 +2,7 @@
 
 import { writeProjectFile } from '../lib/files.ts';
 import type { Log } from '../lib/log.ts';
+import { npmDevDependencies } from './versions.ts';
 
 export function nodeStarter(log: Log, projectPath: string, projectName: string): void {
   const write = (relativePath: string, content: string) => writeProjectFile(projectPath, relativePath, content, { force: true });
@@ -26,16 +27,7 @@ export function nodeStarter(log: Log, projectPath: string, projectName: string):
     author: '',
     license: 'MIT',
     dependencies: {},
-    devDependencies: {
-      '@types/node': '^22.0.0',
-      'typescript': '^5.9.0',
-      '@eslint/js': '^10.0.0',
-      'eslint': '^10.0.0',
-      'globals': '^16.0.0',
-      'typescript-eslint': '^8.0.0',
-      'prettier': '^3.0.0',
-      'tsx': '^4.0.0',
-    },
+    devDependencies: npmDevDependencies(),
   }, null, 2));
 
   write('tsconfig.json', `{

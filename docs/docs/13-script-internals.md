@@ -27,6 +27,8 @@ scripts/
 └── starters/
     ├── index.ts              The starters registry
     ├── names.ts              Package, crate, namespace and module names
+    ├── versions.ts           Reads the dependency versions from versions/
+    ├── versions/             pom.xml, CSharpStarter.csproj and package.json, for Dependabot
     ├── node.ts
     ├── csharp.ts
     ├── rust.ts
@@ -115,4 +117,6 @@ export const starters: Record<Language, Starter> = {
 };
 ```
 
-Because the map is a full `Record`, a language added to `languages` without a starter fails the type check. To add a starter, see [Generated projects](11-generated-projects.md#adding-a-starter).
+Because the map is a full `Record`, a language added to `languages` without a starter fails the type check.
+
+The Node.js, C# and Java starters take their dependency versions from real manifests in `starters/versions/`, which nothing builds. Dependabot scans that folder, so an update arrives as a pull request whose smoke test builds a project with the new version. `versions.ts` reads them: `mavenVersion()` and `nugetVersion()` return a lookup that throws on a name the manifest does not have, and `npmDevDependencies()` returns the `devDependencies` object as it stands. To add a starter, see [Generated projects](11-generated-projects.md#adding-a-starter).
