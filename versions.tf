@@ -8,6 +8,10 @@ terraform {
     }
   }
 
+  # State lives in PostgreSQL so the scheduled drift check can read it. The connection comes
+  # from PG_CONN_STR (or the libpq PG* variables), never from this file.
+  backend "pg" {}
+
   # State and plans hold repository metadata; both are encrypted at rest.
   encryption {
     key_provider "pbkdf2" "state" {

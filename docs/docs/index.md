@@ -11,7 +11,7 @@ Every GitHub repository under `The-Running-Dev` gets the same settings and the s
 
 Each part has its own page on the [documentation site](/):
 
-- [Getting started](/getting-started): tools, the state passphrase and the GitHub token.
+- [Getting started](/getting-started): tools, the state passphrase, the state database and the GitHub token.
 - [The repository standard](/repository-standard) and [repository definitions](/repository-definitions): what every repository gets, and the keys of `repositories/<name>.yaml`.
 - [Create a project](/new-project), [create a repository](/new-repository) and [add a project language](/add-project-language): the three scripts, option by option.
 - [Plan guards](/plan-guards): what is checked before every apply.
@@ -38,9 +38,11 @@ The scripts run on Windows, macOS and Linux.
 - OpenTofu: https://opentofu.org/docs/intro/install/ (`winget install OpenTofu.Tofu`, `brew install opentofu`, ...)
 - GitHub CLI, signed in: `gh auth login`
 - A state passphrase of at least 16 characters, kept somewhere safe. State and plans are encrypted with it, and they cannot be read without it.
+- A PostgreSQL database for the state, reachable from GitHub's runners for the weekly drift check. The state is encrypted before it is stored there.
 
 ```bash
 export TF_VAR_state_passphrase='<your passphrase>'
+export PG_CONN_STR='postgres://<user>:<password>@<host>/<database>?sslmode=require'
 ```
 
 ## Create a project
