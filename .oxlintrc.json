@@ -1,0 +1,16 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  // oxlint rather than ESLint: typescript-eslint does not support TypeScript 7, and
+  // oxlint-tsgolint runs the type-aware rules on it.
+  "categories": {
+    "correctness": "error"
+  },
+  "rules": {
+    // node:test tracks the promises describe() and test() return.
+    "typescript/no-floating-promises": [
+      "error",
+      { "allowForKnownSafeCalls": [{ "from": "package", "package": "node:test", "name": ["describe", "test"] }] }
+    ]
+  },
+  "ignorePatterns": ["docs/**", "node_modules/**"]
+}

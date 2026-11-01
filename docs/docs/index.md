@@ -168,6 +168,7 @@ A repository without a `Main` ruleset needs only the first import; the apply cre
 
 ```bash
 npm run typecheck
+npm run lint
 npm test
 ```
 
