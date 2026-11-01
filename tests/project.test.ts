@@ -97,6 +97,14 @@ describe('writeGitignore', () => {
   test('has a section for every language', () => {
     for (const language of languages) assert.match(gitignoreSection(language), /specific/, language);
   });
+
+  for (const language of [undefined, 'go'] as const) {
+    test(`ignores the Graphify output (${language ?? 'no language'})`, (t) => {
+      const path = tempDir(t);
+      writeGitignore(path, language);
+      assert.ok(read(path, '.gitignore').split('\n').includes('graphify-out/'));
+    });
+  }
 });
 
 describe('common files with commands', () => {
@@ -123,6 +131,12 @@ describe('common files with commands', () => {
       assert.ok(content.includes('Example.Project'), file);
       for (const command of Object.values(commands)) assert.ok(content.includes(command), `${file}: ${command}`);
     }
+  });
+
+  test('points CLAUDE and AGENTS at the Graphify report', (t) => {
+    const path = scaffold(t);
+    for (const file of ['CLAUDE.md', 'AGENTS.md']) assert.ok(read(path, file).includes('graphify-out/GRAPH_REPORT.md'), file);
+    assert.ok(!read(path, 'README.md').includes('graphify'));
   });
 
   test('balances the README fences', (t) => {
@@ -153,6 +167,7 @@ describe('common files while the language is undecided', () => {
       assert.match(content, /not selected yet|has not been selected yet/i, file);
       assert.doesNotMatch(content, /\*\*(Install|Build|Test):\*\*|## (Install|Build|Test|Lint)\b/i, file);
     }
+    for (const file of ['CLAUDE.md', 'AGENTS.md']) assert.ok(read(path, file).includes('graphify-out/GRAPH_REPORT.md'), file);
     assert.ok(read(path, 'docs/architecture.md').includes('Architecture'));
     assert.equal(fenceCount(read(path, 'README.md')) % 2, 0);
   });

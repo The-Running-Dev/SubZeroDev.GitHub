@@ -31,11 +31,11 @@ SubZeroDev.Thing/
 | File | Content |
 | --- | --- |
 | `README.md` | A project outline: description, prerequisites, local setup, the commands section, architecture, development workflow and license. |
-| `CLAUDE.md` | Instructions for Claude Code: commands, architecture principles, project structure, workflow and memory guidelines. Left out with `--client codex`. |
-| `AGENTS.md` | The same working agreement for Codex and other agents, with an `Essential Commands` section. Left out with `--client claude-code`. |
+| `CLAUDE.md` | Instructions for Claude Code: commands, a code map that points at the Graphify report, architecture principles, project structure, workflow and memory guidelines. Left out with `--client codex`. |
+| `AGENTS.md` | The same working agreement for Codex and other agents, with an `Essential Commands` section and the same code map. Left out with `--client claude-code`. |
 | `docs/architecture.md` | An architecture template dated the day it was generated. |
 | `docs/decisions/0001-initial-project-setup.md` | The first architecture decision record, marked `Accepted`. |
-| `.gitignore` | Secrets, IDE files, dependencies, build outputs, logs and caches, followed by the language's own lines. |
+| `.gitignore` | Secrets, IDE files, dependencies, build outputs, logs, caches and `graphify-out/`, followed by the language's own lines. |
 | `.gitattributes` | `* text=auto eol=lf` |
 | `.env.example` | A template for local environment variables. `.env` itself is ignored. |
 

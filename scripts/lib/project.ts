@@ -94,7 +94,10 @@ yarn-debug.log*
 # Runtime
 tmp/
 cache/
-.cache/`;
+.cache/
+
+# Code graph, rebuilt locally by Graphify
+graphify-out/`;
 
 // The language's own .gitignore lines, headed by a comment; empty when it has none.
 export function gitignoreSection(language?: Language): string {
@@ -356,6 +359,11 @@ export function writeAdr(projectPath: string, date = today()): void {
 // Client Instructions
 // ============================================================================
 
+// Points the agent at the Graphify report, which is ignored by git and may not exist yet.
+const codeMapSection = `## Code Map
+
+When \`graphify-out/GRAPH_REPORT.md\` exists, read it before searching the code: it lists the modules, how they connect and the most connected nodes. Rebuild it with \`graphify update .\` after structural changes. Git ignores \`graphify-out/\`.`;
+
 export function writeClaudeInstructions(projectPath: string, projectName: string, commands?: Commands, date = today()): void {
   writeProjectFile(projectPath, 'CLAUDE.md', `# Claude Code Project Instructions
 
@@ -363,6 +371,8 @@ export function writeClaudeInstructions(projectPath: string, projectName: string
 - **Last Updated:** ${date}
 
 ${commandsSection('instructions', 'Commands', commands)}
+
+${codeMapSection}
 
 ## Architecture Principles
 
@@ -413,6 +423,8 @@ export function writeAgentsInstructions(projectPath: string, projectName: string
 - **Last Updated:** ${date}
 
 ${commandsSection('instructions', 'Essential Commands', commands)}
+
+${codeMapSection}
 
 ## Architecture & Design
 
@@ -476,6 +488,31 @@ export function createInitialCommit(run: Runner, projectPath: string, message = 
 // Writes the scripts/starters/<language>.ts files.
 export function runLanguageStarter(log: Log, language: Language, projectPath: string, projectName: string): void {
   starters[language](log, projectPath, projectName);
+}
+
+// ============================================================================
+// Code Graph
+// ============================================================================
+
+// Builds the Graphify code graph into graphify-out/ when graphify is on PATH, and with
+// installHook adds Graphify's post-commit rebuild hook. Neither is required, so a failure
+// is a warning. Call it before the commit: `hook install` adds a merge-driver line to
+// .gitattributes, which the commit then includes.
+export function buildCodeGraph(run: Runner, log: Log, projectPath: string, env = process.env, installHook = false): void {
+  if (!findExecutable('graphify', env)) {
+    log.info('Graphify not found on PATH; skipping the code graph. Build it later with: graphify update .');
+    return;
+  }
+
+  log.step('Building the code graph with Graphify');
+  const build = run('graphify', ['update', '.'], { cwd: projectPath, env });
+  if (build.code === 0) log.success('Code graph written to graphify-out/');
+  else log.warn(`'graphify update .' exited with code ${build.code}${build.stderr.trim() ? `: ${build.stderr.trim()}` : ''}`);
+
+  if (!installHook) return;
+  const hook = run('graphify', ['hook', 'install'], { cwd: projectPath, env });
+  if (hook.code === 0) log.success('Graphify rebuild hooks installed');
+  else log.warn(`'graphify hook install' exited with code ${hook.code}. Install them later with: graphify hook install`);
 }
 
 // ============================================================================

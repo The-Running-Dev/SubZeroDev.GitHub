@@ -13,7 +13,7 @@ import type { Language } from '../scripts/lib/project.ts';
 import { createProject, run } from '../scripts/new-project.ts';
 import type { ProjectOptions } from '../scripts/new-project.ts';
 import {
-  commandMock, createGitRepository, git, pathWithTofu, testContext, testEnv, testRoot, tofuMock,
+  commandMock, createGitRepository, git, pathWithGraphify, pathWithTofu, testContext, testEnv, testRoot, tofuMock,
 } from './helpers.ts';
 
 const name = 'Example.Project';
@@ -174,6 +174,72 @@ describe('createProject validation of the build and tests', () => {
     assert.doesNotMatch(ctx.log.text(), /Build and tests passed/);
     assert.equal(lines(git(project, 'rev-list', '--all')).length, 1);
     assert.equal(git(project, 'status', '--porcelain'), '');
+  });
+});
+
+describe('createProject and Graphify', () => {
+  const withGraphify = (t: TestContext, exitCodes: Record<string, number> = {}) => {
+    const context = setup(t, { env: { PATH: pathWithGraphify(t) } });
+    Object.assign(context.mock.exitCodes, exitCodes);
+    return context;
+  };
+
+  test('skips the code graph when graphify is not on PATH', (t) => {
+    const { create, ctx, mock, project } = setup(t);
+    create({ language: 'node', localOnly: true, skipValidation: true });
+    assert.match(ctx.log.text(), /Graphify not found on PATH/);
+    assert.deepEqual(mock.graphifyCalls, []);
+    assert.ok(!existsSync(join(project, 'graphify-out')));
+    assertSingleCleanCommit(project);
+  });
+
+  test('builds the code graph in the project and keeps it out of the commit', (t) => {
+    const { create, ctx, mock, project } = withGraphify(t);
+    create({ language: 'node', localOnly: true, skipValidation: true });
+    assert.deepEqual(mock.graphifyCalls, [{ args: ['update', '.'], cwd: project }]);
+    assert.ok(existsSync(join(project, 'graphify-out', 'GRAPH_REPORT.md')));
+    assert.match(ctx.log.text(), /Code graph written to graphify-out\//);
+    assert.ok(!lines(git(project, 'ls-files')).some((file) => file.startsWith('graphify-out/')));
+    assertSingleCleanCommit(project);
+  });
+
+  test('builds the code graph for a project without a language', (t) => {
+    const { create, mock, project } = withGraphify(t);
+    create({ localOnly: true });
+    assert.deepEqual(mock.graphifyCalls.map((call) => call.args), [['update', '.']]);
+    assert.deepEqual(lines(git(project, 'ls-files')), commonFiles);
+  });
+
+  test('installs the rebuild hook with --graphify-hook and commits its .gitattributes line', (t) => {
+    const { ctx, mock, project } = withGraphify(t);
+    run(['--name', name, '--language', 'node', '--path', project, '--git-user-name', 'Test', '--git-user-email', 'test@example.com',
+      '--local-only', '--skip-validation', '--graphify-hook'], ctx);
+    assert.deepEqual(mock.graphifyCalls.map((call) => call.args), [['update', '.'], ['hook', 'install']]);
+    assert.match(git(project, 'show', 'HEAD:.gitattributes'), /^graphify-out\/graph\.json merge=graphify$/m);
+    assert.match(ctx.log.text(), /Graphify rebuild hooks installed/);
+    assertSingleCleanCommit(project);
+  });
+
+  test('refuses --graphify-hook without graphify before writing anything', (t) => {
+    const { create, mock, project } = setup(t);
+    assert.throws(() => create({ language: 'node', localOnly: true, graphifyHook: true }), /^Error: 'graphify' was not found/);
+    assert.ok(!existsSync(project));
+    assert.deepEqual(mock.graphifyCalls, []);
+  });
+
+  test('warns, and still commits, when the graph build fails', (t) => {
+    const { create, ctx, project } = withGraphify(t, { 'graphify update .': 2 });
+    create({ language: 'node', localOnly: true, skipValidation: true });
+    assert.match(ctx.log.text(), /'graphify update \.' exited with code 2/);
+    assertSingleCleanCommit(project);
+  });
+
+  test('warns, and still commits, when the hook install fails', (t) => {
+    const { create, ctx, project } = withGraphify(t, { 'graphify hook install': 1 });
+    create({ language: 'node', localOnly: true, skipValidation: true, graphifyHook: true });
+    assert.match(ctx.log.text(), /'graphify hook install' exited with code 1/);
+    assert.doesNotMatch(read(join(project, '.gitattributes')), /merge=graphify/);
+    assertSingleCleanCommit(project);
   });
 });
 

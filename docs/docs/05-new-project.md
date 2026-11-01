@@ -15,17 +15,18 @@ node scripts/new-project.ts --name SubZeroDev.Thing --language node --descriptio
 
 1. **Checks first.** Before anything is written it checks that:
    - the name is valid;
-   - Git is on `PATH`;
+   - Git is on `PATH`, and so is Graphify when `--graphify-hook` is given;
    - the project folder does not exist yet;
    - unless `--local-only` is given, OpenTofu is on `PATH`, `TF_VAR_state_passphrase` is at least 16 characters, and `repositories/<name>.yaml` does not exist.
 2. **Writes the common files.** These are the same for every language; see [Generated projects](11-generated-projects.md).
 3. **Initializes Git** on a `main` branch, with the optional commit identity for this repository only.
 4. **Runs the language starter**, unless `--skip-language-starter` is given.
 5. **Validates.** It runs the language's build and test commands. A failure is reported as a warning, with the install command to try, and does not stop the run.
-6. **Commits** everything as `Initial project scaffold` on `main`.
-7. **Publishes.** It calls `new-repository.ts` with `--path` set to the project folder. That creates the repository empty, pushes `main`, and switches the `Main` ruleset on.
+6. **Builds the code graph** with `graphify update .` when Graphify is on `PATH`, and with `--graphify-hook` installs its rebuild hooks; see [Code graph](#code-graph).
+7. **Commits** everything as `Initial project scaffold` on `main`.
+8. **Publishes.** It calls `new-repository.ts` with `--path` set to the project folder. That creates the repository empty, pushes `main`, and switches the `Main` ruleset on.
 
-`--local-only` stops after step 6. `--plan-only` runs steps 1 to 6, then shows the OpenTofu plan without applying it.
+`--local-only` stops after step 7. `--plan-only` runs steps 1 to 7, then shows the OpenTofu plan without applying it.
 
 ## Options
 
@@ -43,6 +44,7 @@ node scripts/new-project.ts --name SubZeroDev.Thing --language node --descriptio
 | `--git-user-email` | Global config | Commit author email, set in the new repository only. |
 | `--skip-language-starter` | Off | Write the common files and commands, but no starter files. |
 | `--skip-validation` | Off | Skip running the build and test commands. |
+| `--graphify-hook` | Off | Also install Graphify's rebuild hooks. Requires Graphify on `PATH`. |
 | `--local-only` | Off | Scaffold and commit, but do not create the GitHub repository. |
 | `--plan-only` | Off | Scaffold and commit, then show the GitHub plan without applying it. |
 
@@ -69,6 +71,14 @@ node scripts/new-project.ts --name SubZeroDev.Thing --local-only
 ```
 
 The project gets the same common files, committed on `main`, but no starter and no validation. The commands sections of `README.md`, `CLAUDE.md` and `AGENTS.md` say that the language has not been selected yet, instead of listing commands. Publishing works the same way. When the language is chosen, add it with [`add-project-language.ts`](07-add-project-language.md).
+
+## Code graph
+
+When [Graphify](https://github.com/Graphify-Labs/graphify) is on `PATH`, the script runs `graphify update .` in the project after the starter and validation, and before the commit. That builds a code-only graph, with no LLM calls, into `graphify-out/`: `GRAPH_REPORT.md`, `graph.json` and `graph.html`. `.gitignore` keeps `graphify-out/` out of the repository, and `CLAUDE.md` and `AGENTS.md` tell the agent to read the report when it exists. Without Graphify the step is skipped with a note; run `graphify update .` in the project later.
+
+With `--graphify-hook` the script also runs `graphify hook install`. It adds post-commit, post-checkout and post-merge hooks that rebuild the graph in the background, registers a merge driver for `graph.json` in the repository's local Git config, and appends `graphify-out/graph.json merge=graphify` to `.gitattributes`, which the initial commit includes.
+
+Graphify is optional, so a failed build or hook install is a warning and the run goes on.
 
 ## Examples
 
@@ -103,4 +113,5 @@ A refusal prints one line on stderr and exits with code 1. Common ones:
 | `repositories/<name>.yaml already exists; <name> is already managed here.` | A definition with that name exists. |
 | `Set TF_VAR_state_passphrase (16+ characters) before running, or pass --local-only.` | The passphrase is missing or too short. |
 | `'tofu' was not found. Install OpenTofu: …` | OpenTofu is not on `PATH`. |
+| `'graphify' was not found. Install Graphify, or leave out --graphify-hook.` | `--graphify-hook` was given without Graphify on `PATH`. |
 | `--language must be one of node, csharp, rust, java, go; got '<value>'.` | Unknown language. |
