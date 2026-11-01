@@ -26,7 +26,12 @@ scripts/
 │   └── plan-guard.ts         The plan guards
 └── starters/
     ├── index.ts              The starters registry
-    └── node.ts
+    ├── names.ts              Package, crate, namespace and module names
+    ├── node.ts
+    ├── csharp.ts
+    ├── rust.ts
+    ├── java.ts
+    └── go.ts
 ```
 
 ## Context
@@ -98,9 +103,14 @@ A refusal is thrown as an `Error` with a message that says what to do, such as `
 ```typescript
 export type Starter = (log: Log, projectPath: string, projectName: string) => void;
 
-export const starters: Partial<Record<Language, Starter>> = {
+// Every language has a starter; a language without one is not accepted.
+export const starters: Record<Language, Starter> = {
   node: nodeStarter,
+  csharp: csharpStarter,
+  rust: rustStarter,
+  java: javaStarter,
+  go: goStarter,
 };
 ```
 
-A language without an entry gets only the common files and its commands. To add a starter, see [Generated projects](11-generated-projects.md#adding-a-starter).
+Because the map is a full `Record`, a language added to `languages` without a starter fails the type check. To add a starter, see [Generated projects](11-generated-projects.md#adding-a-starter).

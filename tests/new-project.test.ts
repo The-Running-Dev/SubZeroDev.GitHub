@@ -25,6 +25,7 @@ const commonFiles = [
 ];
 const starterFiles = [
   'package.json', 'tsconfig.json', 'eslint.config.js', 'src/index.ts', 'tests/index.test.ts',
+  'Example.Project.slnx', 'global.json', 'Cargo.toml', 'pom.xml', 'go.mod',
 ];
 const read = (path: string) => readFileSync(path, 'utf8');
 const lines = (output: string) => (output ? output.split('\n') : []);
@@ -48,12 +49,12 @@ function assertSingleCleanCommit(project: string) {
 }
 
 describe('createProject --local-only', () => {
-  const cases: { language: Language; starterFile?: string; testCommand: string }[] = [
+  const cases: { language: Language; starterFile: string; testCommand: string }[] = [
     { language: 'node', starterFile: 'package.json', testCommand: 'npm test' },
-    { language: 'csharp', testCommand: 'dotnet test' },
-    { language: 'rust', testCommand: 'cargo test' },
-    { language: 'java', testCommand: 'mvn test' },
-    { language: 'go', testCommand: 'go test ./...' },
+    { language: 'csharp', starterFile: 'Example.Project.slnx', testCommand: 'dotnet test' },
+    { language: 'rust', starterFile: 'Cargo.toml', testCommand: 'cargo test' },
+    { language: 'java', starterFile: 'pom.xml', testCommand: 'mvn test' },
+    { language: 'go', starterFile: 'go.mod', testCommand: 'go test ./...' },
   ];
   for (const { language, starterFile, testCommand } of cases) {
     test(`scaffolds a ${language} project and commits it on main`, (t) => {
@@ -62,17 +63,19 @@ describe('createProject --local-only', () => {
 
       const tracked = lines(git(project, 'ls-files'));
       for (const file of commonFiles) assert.ok(tracked.includes(file), file);
-      if (starterFile) assert.ok(tracked.includes(starterFile), starterFile);
+      assert.ok(tracked.includes(starterFile), starterFile);
       assert.ok(read(join(project, 'README.md')).includes(testCommand));
       assertSingleCleanCommit(project);
     });
   }
 
-  test('commits every file with LF endings', (t) => {
-    const { create, project } = setup(t);
-    create({ language: 'node', localOnly: true, skipValidation: true });
-    assert.deepEqual(lines(git(project, 'ls-files', '--eol')).filter((line) => !/^i\/(lf|none)\s/.test(line)), []);
-  });
+  for (const language of languages) {
+    test(`commits every file with LF endings (${language})`, (t) => {
+      const { create, project } = setup(t);
+      create({ language, localOnly: true, skipValidation: true });
+      assert.deepEqual(lines(git(project, 'ls-files', '--eol')).filter((line) => !/^i\/(lf|none)\s/.test(line)), []);
+    });
+  }
 
   test('never touches the repositories folder', (t) => {
     const { create, root } = setup(t);
@@ -104,11 +107,13 @@ describe('createProject --local-only', () => {
     assert.ok(existsSync(join(project, 'README.md')));
   });
 
-  test('warns when the language has no starter', (t) => {
-    const { create, ctx } = setup(t);
-    create({ language: 'csharp', localOnly: true, skipValidation: true });
-    assert.match(ctx.log.text(), /There is no csharp starter yet/);
-  });
+  for (const language of languages) {
+    test(`never warns that ${language} has no starter`, (t) => {
+      const { create, ctx } = setup(t);
+      create({ language, localOnly: true, skipValidation: true });
+      assert.doesNotMatch(ctx.log.text(), /starter yet/);
+    });
+  }
 });
 
 describe('createProject without a language', () => {

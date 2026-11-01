@@ -20,7 +20,7 @@ node scripts/new-project.ts --name SubZeroDev.Thing --language node --descriptio
    - unless `--local-only` is given, OpenTofu is on `PATH`, `TF_VAR_state_passphrase` is at least 16 characters, and `repositories/<name>.yaml` does not exist.
 2. **Writes the common files.** These are the same for every language; see [Generated projects](11-generated-projects.md).
 3. **Initializes Git** on a `main` branch, with the optional commit identity for this repository only.
-4. **Runs the language starter**, when the language has one.
+4. **Runs the language starter**, unless `--skip-language-starter` is given.
 5. **Validates.** It runs the language's build and test commands. A failure is reported as a warning, with the install command to try, and does not stop the run.
 6. **Commits** everything as `Initial project scaffold` on `main`.
 7. **Publishes.** It calls `new-repository.ts` with `--path` set to the project folder. That creates the repository empty, pushes `main`, and switches the `Main` ruleset on.
@@ -50,15 +50,15 @@ Option values are case-insensitive for `--language`, `--visibility` and `--clien
 
 ## Languages
 
-| Language | Starter | Install | Build | Test |
-| --- | --- | --- | --- | --- |
-| `node` | Yes | `npm install` | `npm run build` | `npm test` |
-| `csharp` | No | `dotnet restore` | `dotnet build` | `dotnet test` |
-| `rust` | No | `cargo fetch` | `cargo build --release` | `cargo test` |
-| `java` | No | `mvn install` | `mvn clean package` | `mvn test` |
-| `go` | No | `go mod download` | `go build -o bin/app` | `go test ./...` |
+| Language | Install | Build | Test | Lint | Run |
+| --- | --- | --- | --- | --- | --- |
+| `node` | `npm install` | `npm run build` | `npm test` | `npm run lint` | `npm start` |
+| `csharp` | `dotnet restore` | `dotnet build` | `dotnet test` | `dotnet format --verify-no-changes` | `dotnet run --project src` |
+| `rust` | `cargo fetch` | `cargo build --release` | `cargo test` | `cargo clippy --all-targets -- -D warnings` | `cargo run --release` |
+| `java` | `mvn dependency:resolve` | `mvn package -DskipTests` | `mvn test` | `mvn checkstyle:check` | `java -jar target/app.jar` |
+| `go` | `go mod download` | `go build -o bin/app .` | `go test ./...` | `go vet ./...` | `go run .` |
 
-A language without a starter still gets its commands, written into `README.md`, `CLAUDE.md` and `AGENTS.md`, and its `.gitignore` lines. Validation runs right after scaffolding, before any dependencies are installed, so a build or test that needs them reports a warning on the first run. That is expected; install the dependencies and run the commands yourself.
+Every language has a starter, described in [Generated projects](11-generated-projects.md). Its commands are written into `README.md`, `CLAUDE.md` and `AGENTS.md`, and its `.gitignore` lines into `.gitignore`. Validation runs the build and test commands right after scaffolding, without the install step. `dotnet`, `cargo` and `mvn` fetch what they need as they build, and the Go starter has no dependencies, so those pass when the toolchain is installed. The Node starter needs `npm install` first, so its first validation reports a warning. That is expected; install the dependencies and run the commands yourself.
 
 ## Without a language
 

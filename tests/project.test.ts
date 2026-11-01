@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, test } from 'node:test';
 import type { TestContext } from 'node:test';
 import { writeProjectFile } from '../scripts/lib/files.ts';
 import {
   assertCommandAvailable, commandsSection, createInitialCommit, createProjectStructure, gitignoreSection,
-  initializeProjectGit, runLanguageStarter, testProjectCommand, today, updateCommandsSection,
+  initializeProjectGit, languages, runLanguageStarter, testProjectCommand, today, updateCommandsSection,
   writeAdr, writeAgentsInstructions, writeArchitecture, writeClaudeInstructions, writeEnvExample,
   writeGitattributes, writeGitignore, writeReadme,
 } from '../scripts/lib/project.ts';
@@ -76,7 +76,7 @@ describe('createProjectStructure', () => {
 });
 
 describe('writeGitignore', () => {
-  const markers: Record<string, string> = { node: '.npm/', csharp: '*.user', java: '.gradle/', rust: 'Cargo.lock' };
+  const markers: Record<string, string> = { node: '.npm/', csharp: '*.user', java: '.gradle/', rust: 'target/', go: '*.test' };
 
   for (const [language, marker] of Object.entries(markers)) {
     test(`adds the ${language} section`, (t) => {
@@ -88,13 +88,14 @@ describe('writeGitignore', () => {
     });
   }
 
-  test('has no language section for go', (t) => {
+  test('keeps Cargo.lock, which an application commits', (t) => {
     const path = tempDir(t);
-    writeGitignore(path, 'go');
-    const content = read(path, '.gitignore');
-    assert.doesNotMatch(content, /specific/);
-    assert.match(content, /^\.env$/m);
-    assert.equal(gitignoreSection('go'), '');
+    writeGitignore(path, 'rust');
+    assert.doesNotMatch(read(path, '.gitignore'), /Cargo\.lock/);
+  });
+
+  test('has a section for every language', () => {
+    for (const language of languages) assert.match(gitignoreSection(language), /specific/, language);
   });
 });
 
@@ -210,21 +211,48 @@ describe('updateCommandsSection', () => {
 });
 
 describe('runLanguageStarter', () => {
-  for (const language of ['csharp', 'rust', 'java', 'go'] as const) {
-    test(`has no starter for ${language}`, (t) => {
-      const path = tempDir(t);
-      assert.equal(runLanguageStarter(memoryLog(), language, path, 'Example.Project'), false);
-      assert.deepEqual(readdirSync(path), []);
-    });
-  }
-
   test('writes the Node starter', (t) => {
     const path = tempDir(t);
-    assert.equal(runLanguageStarter(memoryLog(), 'node', path, 'SubZeroDev.Thing'), true);
+    runLanguageStarter(memoryLog(), 'node', path, 'SubZeroDev.Thing');
     for (const file of ['package.json', 'tsconfig.json', 'tsconfig.test.json', 'eslint.config.js', '.prettierrc.json', 'src/index.ts', 'src/greeting.ts', 'tests/index.test.ts']) {
       assert.ok(existsSync(join(path, file)), file);
     }
     assert.equal(JSON.parse(read(path, 'package.json')).name, 'subzerodev-thing');
+  });
+
+  test('writes the C# starter', (t) => {
+    const path = tempDir(t);
+    runLanguageStarter(memoryLog(), 'csharp', path, 'SubZeroDev.Thing');
+    for (const file of ['SubZeroDev.Thing.slnx', 'Directory.Build.props', 'global.json', '.editorconfig', 'src/SubZeroDev.Thing.csproj', 'src/Greeting.cs', 'src/Program.cs', 'tests/SubZeroDev.Thing.Tests.csproj', 'tests/GreetingTests.cs']) {
+      assert.ok(existsSync(join(path, file)), file);
+    }
+    assert.match(read(path, 'src/Greeting.cs'), /^namespace SubZeroDev\.Thing;$/m);
+    assert.match(read(path, 'global.json'), /Microsoft\.Testing\.Platform/);
+  });
+
+  test('writes the Rust starter', (t) => {
+    const path = tempDir(t);
+    runLanguageStarter(memoryLog(), 'rust', path, 'SubZeroDev.Thing');
+    for (const file of ['Cargo.toml', 'src/lib.rs', 'src/main.rs', 'tests/greeting.rs']) assert.ok(existsSync(join(path, file)), file);
+    assert.match(read(path, 'Cargo.toml'), /^name = "subzerodev-thing"$/m);
+    assert.match(read(path, 'tests/greeting.rs'), /subzerodev_thing::greeting/);
+  });
+
+  test('writes the Java starter', (t) => {
+    const path = tempDir(t);
+    runLanguageStarter(memoryLog(), 'java', path, 'SubZeroDev.Thing');
+    for (const file of ['pom.xml', '.mvn/maven.config', 'src/main/java/subzerodev/thing/App.java', 'src/main/java/subzerodev/thing/Greeting.java', 'src/test/java/subzerodev/thing/GreetingTest.java']) {
+      assert.ok(existsSync(join(path, file)), file);
+    }
+    assert.match(read(path, 'pom.xml'), /<mainClass>subzerodev\.thing\.App<\/mainClass>/);
+  });
+
+  test('writes the Go starter', (t) => {
+    const path = tempDir(t);
+    runLanguageStarter(memoryLog(), 'go', path, 'SubZeroDev.Thing');
+    for (const file of ['go.mod', 'main.go', 'greeting.go', 'greeting_test.go']) assert.ok(existsSync(join(path, file)), file);
+    assert.match(read(path, 'go.mod'), /^module subzerodev-thing$/m);
+    assert.match(read(path, 'greeting_test.go'), /^\tgot := greeting/m);
   });
 });
 

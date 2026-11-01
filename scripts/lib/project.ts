@@ -102,7 +102,8 @@ export function gitignoreSection(language?: Language): string {
     case 'node': return '# Node specific\nnode_modules/\n.npm/\n.next/\nout/';
     case 'csharp': return '# C# specific\nbin/\nobj/\n*.user\n.vs/';
     case 'java': return '# Java specific\ntarget/\n.gradle/\nbuild/';
-    case 'rust': return '# Rust specific\ntarget/\nCargo.lock';
+    case 'rust': return '# Rust specific\ntarget/';
+    case 'go': return '# Go specific\n*.test\n*.out';
     default: return '';
   }
 }
@@ -143,10 +144,10 @@ LOG_LEVEL=info
 export function languageCommands(language: Language): Commands {
   switch (language) {
     case 'node': return { install: 'npm install', build: 'npm run build', test: 'npm test', lint: 'npm run lint', run: 'npm start' };
-    case 'csharp': return { install: 'dotnet restore', build: 'dotnet build', test: 'dotnet test', lint: 'dotnet format --verify-no-changes', run: 'dotnet run' };
-    case 'rust': return { install: 'cargo fetch', build: 'cargo build --release', test: 'cargo test', lint: 'cargo clippy', run: 'cargo run --release' };
-    case 'java': return { install: 'mvn install', build: 'mvn clean package', test: 'mvn test', lint: 'mvn checkstyle:check', run: 'java -jar target/app.jar' };
-    case 'go': return { install: 'go mod download', build: 'go build -o bin/app', test: 'go test ./...', lint: 'golangci-lint run', run: 'go run main.go' };
+    case 'csharp': return { install: 'dotnet restore', build: 'dotnet build', test: 'dotnet test', lint: 'dotnet format --verify-no-changes', run: 'dotnet run --project src' };
+    case 'rust': return { install: 'cargo fetch', build: 'cargo build --release', test: 'cargo test', lint: 'cargo clippy --all-targets -- -D warnings', run: 'cargo run --release' };
+    case 'java': return { install: 'mvn dependency:resolve', build: 'mvn package -DskipTests', test: 'mvn test', lint: 'mvn checkstyle:check', run: 'java -jar target/app.jar' };
+    case 'go': return { install: 'go mod download', build: 'go build -o bin/app .', test: 'go test ./...', lint: 'go vet ./...', run: 'go run .' };
   }
 }
 
@@ -472,12 +473,9 @@ export function createInitialCommit(run: Runner, projectPath: string, message = 
 // Language Starters
 // ============================================================================
 
-// Writes scripts/starters/<language>.ts files. False when the language has no starter.
-export function runLanguageStarter(log: Log, language: Language, projectPath: string, projectName: string): boolean {
-  const starter = starters[language];
-  if (!starter) return false;
-  starter(log, projectPath, projectName);
-  return true;
+// Writes the scripts/starters/<language>.ts files.
+export function runLanguageStarter(log: Log, language: Language, projectPath: string, projectName: string): void {
+  starters[language](log, projectPath, projectName);
 }
 
 // ============================================================================
