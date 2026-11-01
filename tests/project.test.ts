@@ -5,14 +5,15 @@ import { describe, test } from 'node:test';
 import type { TestContext } from 'node:test';
 import { writeProjectFile } from '../scripts/lib/files.ts';
 import {
-  assertCommandAvailable, commandsSection, createInitialCommit, createProjectStructure, gitignoreSection,
-  initializeProjectGit, languages, runLanguageStarter, testProjectCommand, today, updateCommandsSection,
+  assertCommandAvailable, buildCodeGraph, commandsSection, createInitialCommit, createProjectStructure, gitignoreSection,
+  graphifyFailureHint, initializeProjectGit, languages, runLanguageStarter, testProjectCommand, today, updateCommandsSection,
   writeAdr, writeAgentsInstructions, writeArchitecture, writeClaudeInstructions, writeEnvExample,
   writeGitattributes, writeGitignore, writeReadme,
 } from '../scripts/lib/project.ts';
 import type { Commands, Language } from '../scripts/lib/project.ts';
 import { run, runCommand } from '../scripts/lib/process.ts';
-import { git, memoryLog, tempDir } from './helpers.ts';
+import type { Runner } from '../scripts/lib/process.ts';
+import { git, memoryLog, pathWithGraphify, tempDir, testEnv } from './helpers.ts';
 
 const commands: Commands = { install: ['install-cmd'], build: ['build-cmd'], test: ['test-cmd'], lint: ['lint-cmd'], run: ['run-cmd'] };
 const commonFiles = ['README.md', 'CLAUDE.md', 'AGENTS.md', 'docs/architecture.md', 'docs/decisions/0001-initial-project-setup.md'];
@@ -339,5 +340,33 @@ describe('assertCommandAvailable', () => {
     assert.throws(() => assertCommandAvailable('definitely-not-a-command-xyz', 'Install it.'), {
       message: "'definitely-not-a-command-xyz' was not found. Install it.",
     });
+  });
+});
+
+describe('graphifyFailureHint', () => {
+  const missing = "[Errno 2] No such file or directory: 'graphify-out\\cache\\ast\\abc.tmp'";
+
+  test('points at the Windows path limit when Graphify reports a missing file', () => {
+    const hint = graphifyFailureHint(missing, 'C:\\a\\long\\project', 'win32');
+    assert.match(hint ?? '', /260-character limit; the project path alone is 17 characters/);
+    assert.match(hint ?? '', /shorter path, or enable Windows long paths \(LongPathsEnabled\), then run: graphify update \./);
+    assert.ok(graphifyFailureHint('Error: ENOENT: no such file', 'C:\\p', 'win32'));
+  });
+
+  test('gives no hint for other errors or other platforms', () => {
+    assert.equal(graphifyFailureHint('ModuleNotFoundError: No module named tree_sitter', 'C:\\p', 'win32'), undefined);
+    assert.equal(graphifyFailureHint(missing, '/home/me/project', 'linux'), undefined);
+    assert.equal(graphifyFailureHint(missing, '/Users/me/project', 'darwin'), undefined);
+  });
+});
+
+describe('buildCodeGraph', () => {
+  test('warns with Graphify\'s error, and adds the path hint on Windows', (t) => {
+    const log = memoryLog();
+    const run: Runner = () => ({ code: 1, stdout: '', stderr: "[Errno 2] No such file or directory: 'x.tmp'", found: true });
+    buildCodeGraph(run, log, tempDir(t), testEnv({ PATH: pathWithGraphify(t) }));
+    assert.match(log.text(), /'graphify update \.' exited with code 1: \[Errno 2\] No such file or directory/);
+    if (process.platform === 'win32') assert.match(log.text(), /260-character limit/);
+    else assert.doesNotMatch(log.text(), /260-character limit/);
   });
 });

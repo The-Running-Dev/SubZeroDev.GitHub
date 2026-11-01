@@ -507,12 +507,24 @@ export function buildCodeGraph(run: Runner, log: Log, projectPath: string, env =
   log.step('Building the code graph with Graphify');
   const build = run('graphify', ['update', '.'], { cwd: projectPath, env });
   if (build.code === 0) log.success('Code graph written to graphify-out/');
-  else log.warn(`'graphify update .' exited with code ${build.code}${build.stderr.trim() ? `: ${build.stderr.trim()}` : ''}`);
+  else {
+    log.warn(`'graphify update .' exited with code ${build.code}${build.stderr.trim() ? `: ${build.stderr.trim()}` : ''}`);
+    const hint = graphifyFailureHint(`${build.stderr}\n${build.stdout}`, projectPath);
+    if (hint) log.info(hint);
+  }
 
   if (!installHook) return;
   const hook = run('graphify', ['hook', 'install'], { cwd: projectPath, env });
   if (hook.code === 0) log.success('Graphify rebuild hooks installed');
   else log.warn(`'graphify hook install' exited with code ${hook.code}. Install them later with: graphify hook install`);
+}
+
+// Graphify's cache paths under graphify-out/ are long, so on Windows a deep project path
+// passes the 260-character limit, and Python reports the file as missing.
+export function graphifyFailureHint(output: string, projectPath: string, platform = process.platform): string | undefined {
+  if (platform !== 'win32' || !/\[Errno 2\]|No such file or directory|ENOENT/i.test(output)) return undefined;
+  return `On Windows this usually means a path under graphify-out/ passed the 260-character limit; the project path alone is ${projectPath.length} characters. ` +
+    'Move the project to a shorter path, or enable Windows long paths (LongPathsEnabled), then run: graphify update .';
 }
 
 // ============================================================================
