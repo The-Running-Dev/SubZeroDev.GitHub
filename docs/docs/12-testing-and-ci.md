@@ -12,7 +12,7 @@ None of the tests touch GitHub, a token or the real state. The script tests run 
 | Command | What it runs | Needs |
 | --- | --- | --- |
 | `npm run typecheck` | `tsc --noEmit` over the scripts and tests. | Node.js |
-| `npm test` | `node --test "tests/*.test.ts"`: the unit and script tests. | Node.js, Git |
+| `npm test` | `node --test "tests/*.test.ts"`: the unit and script tests. | Node.js, Git, PowerShell 7 for the docs gate tests |
 | `npm run test:tofu` | `tests/tofu.integration.ts`: the OpenTofu configuration and the definitions the scripts write. Skipped where `tofu` is not installed. | OpenTofu |
 | `npm run smoke` | `tests/node-smoke.ts`: a real Node.js project, built, tested, linted and started. | Node.js, Git, npm registry access |
 | `npm run smoke:starter -- <language>` | `tests/starter-smoke.ts`: the same for `csharp`, `rust`, `java` or `go`. | Node.js, Git, the language's toolchain and registry access |
@@ -27,6 +27,7 @@ Run `npm ci` once first. The scripts run TypeScript directly, so there is no bui
 | `tests/new-project.test.ts` | `new-project.ts` end to end, in throwaway folders. |
 | `tests/new-repository.test.ts` | `new-repository.ts`, its plan guards and the publish flow, against the `tofu` stand-in and a local bare `origin`. |
 | `tests/add-project-language.test.ts` | Planning, conflicts and idempotence of `add-project-language.ts`. |
+| `tests/test-documentation.test.ts` | `build/Test-Documentation.ps1` against Markdown fixtures with its own rules file: link targets, heading anchors, terminology warnings and the generated-file check. Skipped where `pwsh` is not installed. |
 
 `tests/helpers.ts` holds the shared fixtures: temporary folders removed after each test, a copy of `scripts/` with an empty `repositories/` for running a CLI, a memory log, Git helpers, and `tofuMock`, a recording stand-in that returns canned plans and outputs. The entry points take a `Context`, so the tests pass these in place of the real process runner; see [Script internals](13-script-internals.md#context).
 
