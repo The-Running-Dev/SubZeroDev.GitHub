@@ -101,9 +101,7 @@ export function createProject(options: ProjectOptions, ctx: Context): void {
   if (!language) {
     log.warn(`Implementation language deferred: no starter, no commands, and no build or test validation. Add it later with: node scripts/add-project-language.ts --path '${path}' --language <language>`);
   } else if (!options.skipLanguageStarter) {
-    if (!runLanguageStarter(log, language, path, name)) {
-      log.warn(`There is no ${language} starter yet; only the common files were written.`);
-    }
+    runLanguageStarter(log, language, path, name);
   }
 
   if (commands && !options.skipValidation) {

@@ -8,6 +8,7 @@ import { dirname, join } from 'node:path';
 import { describe, test } from 'node:test';
 import type { TestContext } from 'node:test';
 import { addProjectLanguage, run } from '../scripts/add-project-language.ts';
+import { languageCommands } from '../scripts/lib/project.ts';
 import type { Language } from '../scripts/lib/project.ts';
 import { createProject } from '../scripts/new-project.ts';
 import { createGitRepository, git, testContext, testRoot } from './helpers.ts';
@@ -102,14 +103,16 @@ describe('addProjectLanguage on a project created without a language', () => {
     assert.deepEqual(snapshot(project), before);
   });
 
-  test('updates the commands and warns for a language without a starter', (t) => {
-    const { project, add } = setup(t);
-    const gitignore = read(join(project, '.gitignore'));
+  for (const [language, file] of [['csharp', 'Example.Project.slnx'], ['rust', 'Cargo.toml'], ['java', 'pom.xml'], ['go', 'go.mod']] as const) {
+    test(`adds the ${language} starter, commands and .gitignore section`, (t) => {
+      const { project, add } = setup(t);
 
-    assert.match(add('go'), /There is no go starter yet/);
-    assert.ok(read(join(project, 'README.md')).includes('go test ./...'));
-    assert.equal(read(join(project, '.gitignore')), gitignore);
-  });
+      assert.doesNotMatch(add(language), /starter yet/);
+      assert.ok(existsSync(join(project, file)), file);
+      assert.match(read(join(project, '.gitignore')), /specific/);
+      assert.ok(read(join(project, 'README.md')).includes(languageCommands(language).test));
+    });
+  }
 
   test('refuses a language it does not know', (t) => {
     const { root, project } = setup(t);

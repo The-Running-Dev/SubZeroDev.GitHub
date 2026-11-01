@@ -44,5 +44,3 @@ Running it again with the same language changes nothing and reports that the pro
 ## Nothing is committed
 
 The script never commits, so the branch and history stay as they are. Review the changes, install the dependencies and run the build and tests, then commit them through a pull request. The `Main` ruleset requires one anyway once the project is published.
-
-A language without a starter (`csharp`, `rust`, `java`, `go`) gets only its commands and `.gitignore` lines, and the script prints a warning saying so.

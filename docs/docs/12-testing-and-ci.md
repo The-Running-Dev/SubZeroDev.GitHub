@@ -15,6 +15,7 @@ None of the tests touch GitHub, a token or the real state. The script tests run 
 | `npm test` | `node --test "tests/*.test.ts"`: the unit and script tests. | Node.js, Git |
 | `npm run test:tofu` | `tests/tofu.integration.ts`: the OpenTofu configuration and the definitions the scripts write. Skipped where `tofu` is not installed. | OpenTofu |
 | `npm run smoke` | `tests/node-smoke.ts`: a real Node.js project, built, tested, linted and started. | Node.js, Git, npm registry access |
+| `npm run smoke:starter -- <language>` | `tests/starter-smoke.ts`: the same for `csharp`, `rust`, `java` or `go`. | Node.js, Git, the language's toolchain and registry access |
 
 Run `npm ci` once first. The scripts run TypeScript directly, so there is no build step.
 
@@ -61,6 +62,18 @@ The same file then writes definitions with `new-repository.ts` and decodes them 
 
 The workspace is deleted afterwards, whether the test passes or fails.
 
+## Starter smoke test
+
+`npm run smoke:starter -- <language>` does the same for the C#, Rust, Java and Go starters, using the commands `languageCommands` writes into the project's `README.md`. It needs the language's toolchain: the .NET 10 SDK, Rust with Clippy, Java 21 with Maven, or Go 1.24 or later. It checks that:
+
+- the project has exactly one commit and a clean working tree, and every tracked file has LF line endings;
+- the install, build, test and lint commands succeed;
+- the test command fails on a deliberately failing test, and the lint command fails on a deliberate violation, each with the expected message;
+- the run command prints the greeting;
+- the build output is all ignored by `.gitignore`, apart from `Cargo.lock`, which a Rust application commits.
+
+Like the Node smoke test, it refuses to run if the scaffolder calls `tofu` or `gh`, and deletes its workspace afterwards.
+
 ## Continuous integration
 
 `.github/workflows/ci.yml` runs on pushes to `main`, on pull requests to `main`, and by hand:
@@ -69,8 +82,9 @@ The workspace is deleted afterwards, whether the test passes or fails.
 | --- | --- | --- |
 | `Test` | Ubuntu, Windows and macOS × Node.js 22 and 24 | `npm ci`, `npm run typecheck`, `npm test` |
 | `Node smoke` | Ubuntu, Windows and macOS × Node.js 22 and 24 | `npm ci`, `npm run smoke` |
+| `Starter smoke` | Ubuntu and Windows × `csharp`, `rust`, `java` and `go`, Node.js 24 | The toolchain from `setup-dotnet`, `setup-java`, `setup-go` or the runner's rustup, then `npm ci`, `npm run smoke:starter -- <language>` |
 | `OpenTofu` | Ubuntu, Node.js 24, OpenTofu from `opentofu/setup-opentofu` | `npm ci`, `npm run test:tofu` |
-| `CI result` | Ubuntu, after the other three | Fails unless every job above passed. |
+| `CI result` | Ubuntu, after the other four | Fails unless every job above passed. |
 
 The workflow starts from `permissions: {}`, and each job asks only for `contents: read`. Every action is pinned to a full commit SHA, and checkout does not keep credentials. `.github/dependabot.yml` opens a weekly pull request to move those pins, and another for the npm packages. `@types/node` stays on the major version of the oldest supported Node.js.
 

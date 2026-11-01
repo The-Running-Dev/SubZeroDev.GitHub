@@ -1,11 +1,11 @@
 ---
 title: Generated projects
-description: The files new-project.ts writes into every project, and what the Node.js starter adds.
+description: The files new-project.ts writes into every project, and what each language starter adds.
 ---
 
 # Generated projects
 
-`new-project.ts` writes the same common files into every project, then the language starter, if the language has one. Every generated file is UTF-8 without a byte order mark, with LF line endings and exactly one trailing newline.
+`new-project.ts` writes the same common files into every project, then the language starter. Every generated file is UTF-8 without a byte order mark, with LF line endings and exactly one trailing newline.
 
 ## Common files
 
@@ -66,8 +66,10 @@ SubZeroDev.Thing/
 | `node` | `node_modules/`, `.npm/`, `.next/`, `out/` |
 | `csharp` | `bin/`, `obj/`, `*.user`, `.vs/` |
 | `java` | `target/`, `.gradle/`, `build/` |
-| `rust` | `target/`, `Cargo.lock` |
-| `go` | None |
+| `rust` | `target/` |
+| `go` | `*.test`, `*.out` |
+
+`Cargo.lock` is not ignored: the Rust starter is an application, so its lock file belongs in the repository. The common lines already ignore `bin/`, `obj/`, `build/` and `dist/`.
 
 ## Node.js starter
 
@@ -93,6 +95,54 @@ SubZeroDev.Thing/
 
 `npm run smoke` in this repository exercises the whole starter; see [Testing and CI](12-testing-and-ci.md#node-smoke-test).
 
+## Other starters
+
+Each of the other starters is the same small application: a greeting function, an entry point that prints `Welcome to <name>`, and one test of the greeting. Names are derived from the project name by `scripts/starters/names.ts`; for `SubZeroDev.Thing` they are shown in brackets below. `npm run smoke:starter -- <language>` exercises each one; see [Testing and CI](12-testing-and-ci.md#starter-smoke-test).
+
+### C#
+
+`scripts/starters/csharp.ts` sets up a .NET 10 solution with xUnit v3.
+
+| File | Content |
+| --- | --- |
+| `<name>.slnx` | The solution, with the two projects in `/src/` and `/tests/` folders. |
+| `Directory.Build.props` | `net10.0`, nullable reference types, implicit usings, warnings as errors, and the latest recommended analyzers enforced at build time. |
+| `global.json` | Runs `dotnet test` on Microsoft.Testing.Platform, which xUnit v3 uses. |
+| `.editorconfig` | UTF-8, LF, four-space C# and two-space XML and JSON. `dotnet format` reads it. |
+| `src/<name>.csproj`, `src/Greeting.cs`, `src/Program.cs` | The console app, in the namespace made from the project name (`SubZeroDev.Thing`). |
+| `tests/<name>.Tests.csproj`, `tests/GreetingTests.cs` | The xUnit v3 test project. |
+
+### Rust
+
+`scripts/starters/rust.ts` sets up a Cargo binary crate.
+
+| File | Content |
+| --- | --- |
+| `Cargo.toml` | The package (`subzerodev-thing`), version `0.1.0`, edition 2024. |
+| `src/lib.rs`, `src/main.rs` | The greeting as a library function, and the binary that prints it. |
+| `tests/greeting.rs` | An integration test of the library (`subzerodev_thing::greeting`). |
+
+### Java
+
+`scripts/starters/java.ts` sets up a Maven project for Java 21.
+
+| File | Content |
+| --- | --- |
+| `pom.xml` | Group `subzerodev.thing`, artifact `subzerodev-thing`. JUnit from its BOM, every plugin version pinned, `-Xlint:all` with warnings failing the build, a jar manifest that makes `target/app.jar` runnable, and Checkstyle with `google_checks.xml` failing on warnings. |
+| `.mvn/maven.config` | `--no-transfer-progress`, which keeps download progress out of build logs. |
+| `src/main/java/<package>/Greeting.java`, `App.java` | The greeting and the entry point, in Google style. |
+| `src/test/java/<package>/GreetingTest.java` | A JUnit test of the greeting. |
+
+### Go
+
+`scripts/starters/go.ts` sets up a Go module with no dependencies.
+
+| File | Content |
+| --- | --- |
+| `go.mod` | Module `subzerodev-thing`, Go 1.24. |
+| `greeting.go`, `main.go` | The greeting and the entry point, in package `main`. |
+| `greeting_test.go` | A test of the greeting. |
+
 ## Adding a starter
 
-A starter is a function `(log, projectPath, projectName) => void` that writes its files with `writeProjectFile`. Register it in the `starters` map in `scripts/starters/index.ts`. A language with no entry in that map still gets its commands and `.gitignore` lines. New languages also need an entry in `languages`, `languageCommands` and `gitignoreSection` in `scripts/lib/project.ts`.
+A starter is a function `(log, projectPath, projectName) => void` that writes its files with `writeProjectFile`. Register it in the `starters` map in `scripts/starters/index.ts`. New languages also need an entry in `languages`, `languageCommands` and `gitignoreSection` in `scripts/lib/project.ts`. The map has an entry for every language, so `npm run typecheck` fails on a language without a starter. Add a smoke test for it too, either in `tests/starter-smoke.ts` or, like Node, in its own file.

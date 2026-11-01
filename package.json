@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "node --test \"tests/*.test.ts\"",
     "test:tofu": "node --test tests/tofu.integration.ts",
-    "smoke": "node tests/node-smoke.ts"
+    "smoke": "node tests/node-smoke.ts",
+    "smoke:starter": "node tests/starter-smoke.ts"
   },
   "devDependencies": {
     "@types/node": "^22.18.0",

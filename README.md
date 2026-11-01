@@ -46,7 +46,7 @@ One command scaffolds the project, commits it on `main`, creates the repository 
 node scripts/new-project.ts --name SubZeroDev.Thing --language node --description 'Does a thing' --topics node,tooling
 ```
 
-The project goes next to this repository (`../SubZeroDev.Thing`) unless `--path` says otherwise. It gets `src/`, `tests/`, `docs/architecture.md`, a first ADR, `.gitignore`, `.gitattributes`, `.env.example`, `README.md`, `CLAUDE.md` and `AGENTS.md` (`--client claude-code` or `--client codex` for one of them), plus the language starter from `scripts/starters/<language>.ts`. `node` has a starter; `csharp`, `rust`, `java` and `go` get the common files only.
+The project goes next to this repository (`../SubZeroDev.Thing`) unless `--path` says otherwise. It gets `src/`, `tests/`, `docs/architecture.md`, a first ADR, `.gitignore`, `.gitattributes`, `.env.example`, `README.md`, `CLAUDE.md` and `AGENTS.md` (`--client claude-code` or `--client codex` for one of them), plus the language starter from `scripts/starters/<language>.ts`. Every language has one: a small application that prints a greeting, with a test and a lint setup.
 
 - `--skip-validation` skips running the build and test commands. A failure there is reported, not fatal.
 - `--local-only` stops after the commit. Publish later with `new-repository.ts --path`.
@@ -57,6 +57,13 @@ The Node starter requires Node.js 22.13+ on the 22.x line, or Node.js 24+. After
 `npm run build`, `npm test`, `npm run lint`, then `npm start`. TypeScript source
 builds to `dist/`; startup runs that compiled output. Tests use Node's test runner with tsx and lint
 uses ESLint 10 with a TypeScript flat config. `npm run dev` watches the source with tsx.
+
+The other starters follow the same shape:
+
+- `csharp`: a .NET 10 solution (`.slnx`) with a console app in `src/` and an xUnit v3 test project in `tests/`, warnings as errors, and `dotnet format` as the lint.
+- `rust`: a Cargo binary crate on edition 2024, with a library function, an integration test, and Clippy with warnings denied.
+- `java`: a Maven project for Java 21 with JUnit, Checkstyle in Google style, and a runnable `target/app.jar`.
+- `go`: a Go module with a `main` package, a test, and `go vet` as the lint.
 
 ### Without a language
 
@@ -176,4 +183,12 @@ It scaffolds with `--local-only` into a temporary workspace, installs dependenci
 builds, tests and lints, then starts the compiled application with the source
 directory removed. It also verifies that a failing assertion and a TypeScript
 lint violation are rejected. The workspace is
-deleted even if a check fails. CI runs the tests and the smoke test on Ubuntu, Windows and macOS with Node 22 and 24.
+deleted even if a check fails.
+
+The other starters have their own smoke test, which needs the language's toolchain instead of npm:
+
+```bash
+npm run smoke:starter -- csharp
+```
+
+It scaffolds the project the same way, runs its install, build, test and lint commands, checks that a failing test and a lint violation are rejected, runs the application, and checks that the build output is ignored by `.gitignore`. CI runs the tests and the Node smoke test on Ubuntu, Windows and macOS with Node 22 and 24, and the starter smoke test for `csharp`, `rust`, `java` and `go` on Ubuntu and Windows.

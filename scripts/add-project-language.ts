@@ -66,13 +66,12 @@ export function addProjectLanguage(options: LanguageOptions, ctx: Context): void
   const newFiles: string[] = [];
   const readyDocuments: Document[] = [];
   const conflicts: string[] = [];
-  let hasStarter: boolean;
 
   // The starter writes into a scratch folder first, so nothing in the project is overwritten.
   const staging = mkdtempSync(join(tmpdir(), 'starter-'));
   try {
     log.step(`Planning ${language} for ${name} in ${path}`);
-    hasStarter = runLanguageStarter(log, language, staging, name);
+    runLanguageStarter(log, language, staging, name);
     const staged = readdirSync(staging, { recursive: true, encoding: 'utf8' })
       .map((relative) => relative.replace(/\\/g, '/'))
       .filter((relative) => statSync(join(staging, relative)).isFile())
@@ -127,9 +126,6 @@ export function addProjectLanguage(options: LanguageOptions, ctx: Context): void
     rmSync(staging, { recursive: true, force: true });
   }
 
-  if (!hasStarter) {
-    log.warn(`There is no ${language} starter yet; only the commands and .gitignore were updated.`);
-  }
   log.success(`${language} added to ${name}. Nothing was committed: review the changes, run ${commands.install}, ${commands.build} and ${commands.test}, then commit.`);
 }
 
