@@ -5,10 +5,11 @@ description: Changing, importing, archiving and checking managed repositories wi
 
 # Day-to-day operations
 
-Anything other than creating a repository is a plain OpenTofu workflow. Each section below assumes that both credentials are set:
+Anything other than creating a repository is a plain OpenTofu workflow. Each section below assumes that the credentials are set:
 
 ```bash
 export TF_VAR_state_passphrase='<your passphrase>'
+export PG_CONN_STR='<state database connection string>'
 export GITHUB_TOKEN="$(gh auth token)"
 ```
 
@@ -36,6 +37,19 @@ tofu plan
 ```
 
 A plan with no changes means GitHub matches the definitions. Any change it shows was made outside this configuration, for example by hand in the GitHub UI. The next apply reverts it, unless the definition is updated to keep it.
+
+The [Drift workflow](12-testing-and-ci.md#drift-detection) runs the same plan every Monday and fails if it finds anything.
+
+## Move the state to PostgreSQL
+
+Before the `pg` backend, the state was the local `terraform.tfstate`. To move an existing local state into the database once, with the passphrase and `PG_CONN_STR` set:
+
+```bash
+tofu init -migrate-state
+tofu plan
+```
+
+Answer `yes` when OpenTofu asks to copy the state. The state stays encrypted with the same passphrase. When the plan shows no changes, keep `terraform.tfstate` and `terraform.tfstate.backup` somewhere safe for a while, then delete them from the repository folder.
 
 ## Bring an existing repository under management
 

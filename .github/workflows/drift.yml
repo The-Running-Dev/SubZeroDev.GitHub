@@ -1,0 +1,64 @@
+name: Drift
+
+# A weekly tofu plan against the real state and GitHub. Any change it finds was made outside this
+# configuration. The repository is public, so the log lists only the addresses that would change,
+# never the plan's values.
+
+on:
+  schedule:
+    - cron: '41 5 * * 1'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: drift
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    name: Plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # The environment holds the secrets and allows only main, so a branch cannot edit this
+    # workflow to read them.
+    environment: drift
+    permissions:
+      contents: read
+    env:
+      PG_CONN_STR: ${{ secrets.PG_CONN_STR }}
+      TF_VAR_state_passphrase: ${{ secrets.TF_STATE_PASSPHRASE }}
+      GITHUB_TOKEN: ${{ secrets.DRIFT_GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
+        with:
+          tofu_wrapper: false
+
+      - run: tofu init -input=false
+
+      # -lock=false: a plan writes nothing, so it need not hold the lock against a local apply.
+      - name: Plan and list drift
+        run: |
+          code=0
+          tofu plan -input=false -lock=false -no-color -detailed-exitcode -out=drift.tfplan > /dev/null || code=$?
+          if [ "$code" -eq 0 ]; then
+            echo "No drift: every repository on GitHub matches its definition."
+            exit 0
+          fi
+          if [ "$code" -ne 2 ]; then exit "$code"; fi
+          tofu show -json drift.tfplan \
+            | jq -r '.resource_changes[] | select(.change.actions != ["no-op"]) | "\(.change.actions | join("/")) \(.address)"' \
+            | tee drift.txt
+          {
+            echo '## Drift'
+            echo
+            echo 'Run `tofu plan` locally to see the values.'
+            echo
+            sed 's/^/- /' drift.txt
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::error::GitHub differs from the definitions in $(wc -l < drift.txt) resource(s)."
+          exit 1

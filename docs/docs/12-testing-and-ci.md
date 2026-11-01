@@ -1,6 +1,6 @@
 ---
 title: Testing and CI
-description: The test suites for the scripts and the OpenTofu configuration, and the workflows that run them.
+description: The test suites for the scripts and the OpenTofu configuration, the workflows that run them, and the weekly drift check.
 ---
 
 # Testing and CI
@@ -94,6 +94,24 @@ Like the Node smoke test, it refuses to run if the scaffolder calls `tofu` or `g
 The workflow starts from `permissions: {}`, and each job asks only for `contents: read`. Every action is pinned to a full commit SHA, and checkout does not keep credentials. `.github/dependabot.yml` opens a weekly pull request to move those pins, and another for the npm packages. `@types/node` stays on the major version of the oldest supported Node.js. It also updates the versions the Node.js, C# and Java starters write, from the manifests in `scripts/starters/versions/`; the starter's smoke test then builds a project with each update before it merges. The npm starter versions are caret ranges, so only a new major opens a pull request.
 
 This repository's own definition, `repositories/SubZeroDev.GitHub.yaml`, requires two checks: `CI result` and `docs / Build`. Requiring `CI result` instead of each matrix job means a job can be added, renamed or moved to another runner without changing the definition. Renaming `CI result` itself, or the `Build` job of the documentation workflow, needs the same rename in the definition, or pull requests wait on a check that never reports.
+
+## Drift detection
+
+`.github/workflows/drift.yml` is the one workflow that touches GitHub and the real state. Every Monday at 05:41 UTC, and by hand, it runs `tofu init` against the state database and then `tofu plan -detailed-exitcode -lock=false`. A plan writes nothing, so it does not take the lock away from a local apply.
+
+- **No changes.** The job passes.
+- **Changes.** The job fails, and its log and summary list each address that would change with its actions, such as `update module.repository["SubZeroDev.Thing"].github_repository.this`. This repository is public, so the plan's values are never printed; run `tofu plan` locally to see them. Then either apply to revert the change, or update the definition to keep it. See [Check for drift](10-operations.md#check-for-drift).
+- **Error.** The job fails with OpenTofu's error, for example when the database is unreachable or the token lacks a permission.
+
+The job runs in the `drift` environment, which holds its three secrets and allows only `main`, so a branch cannot change the workflow to read them:
+
+| Secret | Holds |
+| --- | --- |
+| `PG_CONN_STR` | The state database connection string. |
+| `TF_STATE_PASSPHRASE` | The state passphrase, passed as `TF_VAR_state_passphrase`. |
+| `DRIFT_GITHUB_TOKEN` | A fine-grained token for all `The-Running-Dev` repositories with read-only Administration and Metadata, passed as `GITHUB_TOKEN`. Reading rulesets needs Administration. |
+
+The workflow starts from `permissions: {}` and asks only for `contents: read`. As with CI, GitHub emails a failed scheduled run to whoever last changed the schedule.
 
 ## Documentation
 
