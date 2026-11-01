@@ -196,4 +196,4 @@ The other starters have their own smoke test, which needs the language's toolcha
 npm run smoke:starter -- csharp
 ```
 
-It scaffolds the project the same way, runs its install, build, test and lint commands, checks that a failing test and a lint violation are rejected, runs the application, and checks that the build output is ignored by `.gitignore`. CI runs the tests and the Node smoke test on Ubuntu, Windows and macOS with Node 22 and 24, and the starter smoke test for `csharp`, `rust`, `java` and `go` on Ubuntu and Windows.
+It scaffolds the project the same way, runs its install, build, test and lint commands, checks that a failing test and a lint violation are rejected, runs the application, and checks that the build output is ignored by `.gitignore`. CI runs the tests and the Node smoke test on Ubuntu, Windows and macOS with Node 22 and 24, and the starter smoke test for `csharp`, `rust`, `java` and `go` on all three.
