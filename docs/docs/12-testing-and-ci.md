@@ -83,7 +83,7 @@ Like the Node smoke test, it refuses to run if the scaffolder calls `tofu` or `g
 | --- | --- | --- |
 | `Test` | Ubuntu, Windows and macOS × Node.js 22 and 24 | `npm ci`, `npm run typecheck`, `npm test` |
 | `Node smoke` | Ubuntu, Windows and macOS × Node.js 22 and 24 | `npm ci`, `npm run smoke` |
-| `Starter smoke` | Ubuntu and Windows × `csharp`, `rust`, `java` and `go`, Node.js 24 | The toolchain from `setup-dotnet`, `setup-java`, `setup-go` or the runner's rustup, a `~/.m2/repository` cache for Java keyed on `scripts/starters/java.ts`, then `npm ci`, `npm run smoke:starter -- <language>` |
+| `Starter smoke` | Ubuntu and Windows × `csharp`, `rust`, `java` and `go`, Node.js 24 | The toolchain from `setup-dotnet`, `setup-java`, `setup-go` or the runner's rustup, a `~/.nuget/packages` cache for C# keyed on `scripts/starters/csharp.ts` and a `~/.m2/repository` cache for Java keyed on `scripts/starters/java.ts`, then `npm ci`, `npm run smoke:starter -- <language>` |
 | `OpenTofu` | Ubuntu, Node.js 24, OpenTofu from `opentofu/setup-opentofu` | `npm ci`, `npm run test:tofu` |
 | `CI result` | Ubuntu, after the other four | Fails unless every job above passed. |
 
