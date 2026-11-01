@@ -12,7 +12,7 @@ import { formatCommand } from '../scripts/lib/process.ts';
 import { languageCommands } from '../scripts/lib/project.ts';
 import type { Language } from '../scripts/lib/project.ts';
 import { createProject } from '../scripts/new-project.ts';
-import { createGitRepository, git, testContext, testRoot } from './helpers.ts';
+import { createGitRepository, git, pathWithGraphify, testContext, testEnv, testRoot, tofuMock } from './helpers.ts';
 
 const read = (path: string) => readFileSync(path, 'utf8');
 
@@ -139,6 +139,52 @@ describe('addProjectLanguage on a project that already has a language', () => {
 
     assert.throws(() => add('csharp'), /Nothing was changed/);
     assert.deepEqual(snapshot(project), before);
+  });
+});
+
+describe('addProjectLanguage and the Graphify code graph', () => {
+  // Adds node with a graphify stand-in on PATH; the calls go to tofuMock.
+  function addWithGraphify(t: TestContext, root: string, project: string, exitCodes: Record<string, number> = {}) {
+    const { mock, runner } = tofuMock();
+    Object.assign(mock.exitCodes, exitCodes);
+    const ctx = testContext(root, { env: testEnv({ PATH: pathWithGraphify(t) }), run: runner });
+    addProjectLanguage({ path: project, language: 'node' }, ctx);
+    return { mock, output: ctx.log.text() };
+  }
+
+  test('rebuilds an existing graph after adding the starter', (t) => {
+    const { root, project } = setup(t);
+    mkdirSync(join(project, 'graphify-out'));
+
+    const { mock, output } = addWithGraphify(t, root, project);
+    assert.deepEqual(mock.graphifyCalls, [{ args: ['update', '.'], cwd: project }]);
+    assert.ok(existsSync(join(project, 'graphify-out', 'GRAPH_REPORT.md')));
+    assert.match(output, /Code graph written to graphify-out\/[\s\S]*node added to Example\.Project/);
+    assert.ok(existsSync(join(project, 'package.json')));
+  });
+
+  test('builds no graph for a project that has none', (t) => {
+    const { root, project } = setup(t);
+    const { mock, output } = addWithGraphify(t, root, project);
+    assert.deepEqual(mock.graphifyCalls, []);
+    assert.ok(!existsSync(join(project, 'graphify-out')));
+    assert.doesNotMatch(output, /Graphify/);
+  });
+
+  test('leaves the graph alone when there is nothing to change', (t) => {
+    const { root, project, add } = setup(t);
+    add('node');
+    mkdirSync(join(project, 'graphify-out'));
+    const { mock } = addWithGraphify(t, root, project);
+    assert.deepEqual(mock.graphifyCalls, []);
+  });
+
+  test('warns, and keeps the added files, when the rebuild fails', (t) => {
+    const { root, project } = setup(t);
+    mkdirSync(join(project, 'graphify-out'));
+    const { output } = addWithGraphify(t, root, project, { 'graphify update .': 1 });
+    assert.match(output, /'graphify update \.' exited with code 1/);
+    assert.ok(existsSync(join(project, 'package.json')));
   });
 });
 

@@ -24,6 +24,7 @@ node scripts/add-project-language.ts --path ../SubZeroDev.Thing --language node
 - **Starter files.** The language's starter files are written wherever no file exists yet.
 - **Commands sections.** The undecided section of `README.md` (`Commands`), `CLAUDE.md` (`Commands`) and `AGENTS.md` (`Essential Commands`) is replaced with the language's commands.
 - **`.gitignore`.** The language's lines are appended, unless they are already there.
+- **Code graph.** If the project already has a Graphify code graph (`graphify-out/`), `graphify update .` rebuilds it so it includes the starter's code. A project without one is left without one. If Graphify is not on PATH, or the rebuild fails, the script warns and keeps the other changes.
 
 ## Planned before anything is written
 
