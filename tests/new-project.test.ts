@@ -7,13 +7,13 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import { dirname, join } from 'node:path';
 import { describe, test } from 'node:test';
 import type { TestContext } from 'node:test';
-import { findExecutable } from '../scripts/lib/process.ts';
+import { findExecutable, formatCommand } from '../scripts/lib/process.ts';
 import { languageCommands, languages } from '../scripts/lib/project.ts';
 import type { Language } from '../scripts/lib/project.ts';
 import { createProject, run } from '../scripts/new-project.ts';
 import type { ProjectOptions } from '../scripts/new-project.ts';
 import {
-  createGitRepository, git, pathWithTofu, shellMock, testContext, testEnv, testRoot, tofuMock,
+  commandMock, createGitRepository, git, pathWithTofu, testContext, testEnv, testRoot, tofuMock,
 } from './helpers.ts';
 
 const name = 'Example.Project';
@@ -34,10 +34,10 @@ function setup(t: TestContext, options: { env?: NodeJS.ProcessEnv; exitCodes?: R
   const root = testRoot(t);
   const project = join(dirname(root), name);
   const { mock, runner } = tofuMock({ repositoryName: name, cloneUrl: options.cloneUrl });
-  const { calls: shellCalls, shell } = shellMock(options.exitCodes);
-  const ctx = testContext(root, { env: testEnv(options.env), run: runner, shell });
+  const { calls: commandCalls, runCommand } = commandMock(options.exitCodes);
+  const ctx = testContext(root, { env: testEnv(options.env), run: runner, runCommand });
   const create = (options: Partial<ProjectOptions> = {}) => createProject({ name, path: project, ...identity, ...options }, ctx);
-  return { root, project, mock, shellCalls, ctx, create };
+  return { root, project, mock, commandCalls, ctx, create };
 }
 
 function assertSingleCleanCommit(project: string) {
@@ -117,7 +117,7 @@ describe('createProject --local-only', () => {
 });
 
 describe('createProject without a language', () => {
-  const everyCommand = languages.flatMap((language) => Object.values(languageCommands(language)));
+  const everyCommand = languages.flatMap((language) => Object.values(languageCommands(language)).map(formatCommand));
 
   test('scaffolds the common files and commits them on main', (t) => {
     const { create, project } = setup(t);
@@ -139,13 +139,13 @@ describe('createProject without a language', () => {
   });
 
   test('runs no build or test validation, and says the language is deferred', (t) => {
-    const { create, ctx, shellCalls } = setup(t);
+    const { create, ctx, commandCalls } = setup(t);
     create({ localOnly: true });
     const output = ctx.log.text();
     assert.match(output, /Implementation language deferred/);
     assert.match(output, /add-project-language\.ts/);
     assert.doesNotMatch(output, /Running:|Build and tests passed|Build or tests did not pass/);
-    assert.deepEqual(shellCalls, []);
+    assert.deepEqual(commandCalls, []);
   });
 
   for (const [client, expected, absent] of [['claude-code', 'CLAUDE.md', 'AGENTS.md'], ['codex', 'AGENTS.md', 'CLAUDE.md']] as const) {
@@ -160,10 +160,10 @@ describe('createProject without a language', () => {
 
 describe('createProject validation of the build and tests', () => {
   test('reports success when build and test exit 0', (t) => {
-    const { create, ctx, project, shellCalls } = setup(t);
+    const { create, ctx, project, commandCalls } = setup(t);
     create({ language: 'node', localOnly: true });
     assert.match(ctx.log.text(), /Build and tests passed/);
-    assert.deepEqual(shellCalls.map((call) => call.command), ['npm run build', 'npm test']);
+    assert.deepEqual(commandCalls.map((call) => call.command), ['npm run build', 'npm test']);
     assert.equal(lines(git(project, 'rev-list', '--all')).length, 1);
   });
 

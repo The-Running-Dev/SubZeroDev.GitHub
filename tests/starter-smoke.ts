@@ -8,13 +8,12 @@
 //
 //   node tests/starter-smoke.ts csharp
 
-import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { defaultContext } from '../scripts/lib/context.ts';
-import { run } from '../scripts/lib/process.ts';
-import type { Runner } from '../scripts/lib/process.ts';
+import { formatCommand, run, runCommand } from '../scripts/lib/process.ts';
+import type { CommandLine, Runner } from '../scripts/lib/process.ts';
 import { languageCommands } from '../scripts/lib/project.ts';
 import { main } from '../scripts/lib/runtime.ts';
 import { createProject } from '../scripts/new-project.ts';
@@ -89,15 +88,15 @@ function git(cwd: string, ...args: string[]): string {
   return result.stdout.trim();
 }
 
-// The fixed command lines from languageCommands only; a shell resolves them as a person would.
-function shell(cwd: string, command: string, options: { check?: boolean } = {}): { code: number; output: string } {
-  const result = spawnSync(command, { cwd, shell: true, encoding: 'utf8', windowsHide: true });
-  const output = `${result.stdout ?? ''}${result.stderr ?? ''}`;
-  if ((options.check ?? true) && result.status !== 0) {
+// Runs a command from languageCommands the way the scaffold's validation does, without a shell.
+function execute(cwd: string, command: CommandLine, options: { check?: boolean } = {}): { code: number; output: string } {
+  const result = runCommand(command, { cwd });
+  const output = `${result.stdout}${result.stderr}`;
+  if ((options.check ?? true) && result.code !== 0) {
     process.stdout.write(output);
-    throw new Error(`Command failed (${result.status}): ${command}`);
+    throw new Error(`Command failed (${result.code}): ${formatCommand(command)}`);
   }
-  return { code: result.status ?? 1, output };
+  return { code: result.code, output };
 }
 
 // Fail locally if scaffolding ever regresses into trying to publish.
@@ -108,17 +107,17 @@ const guarded: Runner = (command, args, options) => {
 };
 
 // Proves a command detects a real failure, rather than passing with no effective checks.
-function expectFailure(project: string, command: string, probe: Probe): void {
+function expectFailure(project: string, command: CommandLine, probe: Probe): void {
   const target = join(project, probe.file);
   mkdirSync(dirname(target), { recursive: true });
   writeFileSync(target, probe.content);
   try {
-    const result = shell(project, command, { check: false });
+    const result = execute(project, command, { check: false });
     if (result.code === 0 || !result.output.includes(probe.marker)) {
       process.stdout.write(result.output);
-      throw new Error(`${command} did not reject ${probe.file} with "${probe.marker}" as expected.`);
+      throw new Error(`${formatCommand(command)} did not reject ${probe.file} with "${probe.marker}" as expected.`);
     }
-    console.log(`Confirmed: ${command} rejects ${probe.file}.`);
+    console.log(`Confirmed: ${formatCommand(command)} rejects ${probe.file}.`);
   } finally {
     rmSync(target, { force: true });
   }
@@ -144,17 +143,17 @@ function smoke(language: StarterLanguage): void {
     if (badEndings.length) throw new Error(`Scaffold files must have LF endings: ${badEndings.join('\n')}`);
 
     for (const command of [commands.install, commands.build, commands.test, commands.lint]) {
-      console.log(`> ${command}`);
-      process.stdout.write(shell(project, command).output);
+      console.log(`> ${formatCommand(command)}`);
+      process.stdout.write(execute(project, command).output);
     }
 
     expectFailure(project, commands.test, probes[language].test);
     expectFailure(project, commands.lint, probes[language].lint);
 
-    const startup = shell(project, commands.run);
+    const startup = execute(project, commands.run);
     process.stdout.write(startup.output);
     if (!startup.output.split(/\r?\n/).includes(`Welcome to ${name}`)) {
-      throw new Error(`${commands.run} did not print the greeting.`);
+      throw new Error(`${formatCommand(commands.run)} did not print the greeting.`);
     }
 
     // Build output must be ignored; Cargo.lock is the one file an application should commit.

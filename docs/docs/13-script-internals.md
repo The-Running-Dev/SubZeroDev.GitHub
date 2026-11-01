@@ -18,7 +18,7 @@ scripts/
 │   ├── context.ts            The Context passed to every entry point
 │   ├── runtime.ts            Node.js version check, main(), isMain()
 │   ├── options.ts            Command-line parsing helpers
-│   ├── process.ts            run, runShell, findExecutable
+│   ├── process.ts            run, runCommand, formatCommand, findExecutable
 │   ├── files.ts              writeProjectFile and line ending normalization
 │   ├── log.ts                Console output
 │   ├── project.ts            Languages, commands and the common generated files
@@ -43,7 +43,7 @@ Everything an entry point touches outside its arguments comes in through a `Cont
 | `root` | The repository root | Where `repositories/` and the OpenTofu configuration live. |
 | `env` | `process.env` | Environment variables, such as `GITHUB_TOKEN` and `TF_VAR_state_passphrase`. |
 | `run` | `run` from `process.ts` | Runs `git`, `gh` and `tofu`. |
-| `shell` | `runShell` from `process.ts` | Runs a language's validation commands. |
+| `runCommand` | `runCommand` from `process.ts` | Runs a language's validation commands. |
 | `log` | `createLog()` | Writes progress to the console. |
 
 `defaultContext()` builds the real one. Tests pass their own, with a temporary root, a recording `tofu` stand-in and a memory log.
@@ -86,7 +86,9 @@ A refusal is thrown as an `Error` with a message that says what to do, such as `
 
 `run` always passes arguments directly to the program, with no shell. Text from the user, such as a description or a path, can never become shell syntax. It returns the exit code, the captured output, and whether the program was found at all.
 
-`runShell` is the one exception. It runs the fixed command lines of the language table, such as `npm test`, which need a shell to find `npm.cmd` and the like on Windows. Those lines never contain user text.
+The language table holds each command as a program and its arguments, such as `['npm', 'run', 'build']`. `formatCommand` shows it as a person would type it, `npm run build`, in README.md, CLAUDE.md, AGENTS.md and messages. `runCommand` runs it without a shell too.
+
+On Windows, `npm` and `mvn` are batch files, `npm.cmd` and `mvn.cmd`, and Node.js refuses to start a batch file directly. `runCommand` starts those through `cmd.exe /d /s /c` with a command line it builds itself. Because `cmd.exe` reads that line as syntax, it accepts only arguments made of letters, digits and `_@+=,.:/\-`, and refuses anything else, such as `&`, `%` or a space, rather than trying to escape it. Every command in the language table fits.
 
 `findExecutable` searches `PATH` the way the platform does, including `.exe`, `.cmd` and `.bat` on Windows. `assertCommandAvailable` in `project.ts` uses it to refuse early, with an install hint, when `git` or `tofu` is missing.
 

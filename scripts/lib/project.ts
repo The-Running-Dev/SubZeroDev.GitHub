@@ -6,18 +6,18 @@ import { join } from 'node:path';
 import { starters } from '../starters/index.ts';
 import { writeProjectFile } from './files.ts';
 import type { Log } from './log.ts';
-import { findExecutable } from './process.ts';
-import type { Runner, ShellRunner } from './process.ts';
+import { findExecutable, formatCommand } from './process.ts';
+import type { CommandLine, CommandRunner, Runner } from './process.ts';
 
 export const languages = ['node', 'csharp', 'rust', 'java', 'go'] as const;
 export type Language = (typeof languages)[number];
 
 export interface Commands {
-  install: string;
-  build: string;
-  test: string;
-  lint: string;
-  run: string;
+  install: CommandLine;
+  build: CommandLine;
+  test: CommandLine;
+  lint: CommandLine;
+  run: CommandLine;
 }
 
 export const namePattern = /^[A-Za-z0-9._-]+$/;
@@ -143,11 +143,11 @@ LOG_LEVEL=info
 
 export function languageCommands(language: Language): Commands {
   switch (language) {
-    case 'node': return { install: 'npm install', build: 'npm run build', test: 'npm test', lint: 'npm run lint', run: 'npm start' };
-    case 'csharp': return { install: 'dotnet restore', build: 'dotnet build', test: 'dotnet test', lint: 'dotnet format --verify-no-changes', run: 'dotnet run --project src' };
-    case 'rust': return { install: 'cargo fetch', build: 'cargo build --release', test: 'cargo test', lint: 'cargo clippy --all-targets -- -D warnings', run: 'cargo run --release' };
-    case 'java': return { install: 'mvn dependency:resolve', build: 'mvn package -DskipTests', test: 'mvn test', lint: 'mvn checkstyle:check', run: 'java -jar target/app.jar' };
-    case 'go': return { install: 'go mod download', build: 'go build -o bin/app .', test: 'go test ./...', lint: 'go vet ./...', run: 'go run .' };
+    case 'node': return { install: ['npm', 'install'], build: ['npm', 'run', 'build'], test: ['npm', 'test'], lint: ['npm', 'run', 'lint'], run: ['npm', 'start'] };
+    case 'csharp': return { install: ['dotnet', 'restore'], build: ['dotnet', 'build'], test: ['dotnet', 'test'], lint: ['dotnet', 'format', '--verify-no-changes'], run: ['dotnet', 'run', '--project', 'src'] };
+    case 'rust': return { install: ['cargo', 'fetch'], build: ['cargo', 'build', '--release'], test: ['cargo', 'test'], lint: ['cargo', 'clippy', '--all-targets', '--', '-D', 'warnings'], run: ['cargo', 'run', '--release'] };
+    case 'java': return { install: ['mvn', 'dependency:resolve'], build: ['mvn', 'package', '-DskipTests'], test: ['mvn', 'test'], lint: ['mvn', 'checkstyle:check'], run: ['java', '-jar', 'target/app.jar'] };
+    case 'go': return { install: ['go', 'mod', 'download'], build: ['go', 'build', '-o', 'bin/app', '.'], test: ['go', 'test', './...'], lint: ['go', 'vet', './...'], run: ['go', 'run', '.'] };
   }
 }
 
@@ -168,18 +168,18 @@ export function commandsSection(style: SectionStyle, heading = 'Commands', comma
   if (style === 'readme') {
     body = commands
       ? ([['Install', commands.install], ['Build', commands.build], ['Test', commands.test], ['Lint', commands.lint], ['Run Locally', commands.run]] as const)
-        .map(([title, command]) => `## ${title}\n\n${fence}bash\n${command}\n${fence}`).join('\n\n')
+        .map(([title, command]) => `## ${title}\n\n${fence}bash\n${formatCommand(command)}\n${fence}`).join('\n\n')
       : `## Implementation Stack
 
 Not selected yet. Install, build, test, lint and run commands are added here when the implementation language is chosen.`;
   } else if (commands) {
     body = `## ${heading}
 
-- **Install:** \`${commands.install}\`
-- **Build:** \`${commands.build}\`
-- **Test:** \`${commands.test}\`
-- **Lint/Format:** \`${commands.lint}\`
-- **Run locally:** \`${commands.run}\``;
+- **Install:** \`${formatCommand(commands.install)}\`
+- **Build:** \`${formatCommand(commands.build)}\`
+- **Test:** \`${formatCommand(commands.test)}\`
+- **Lint/Format:** \`${formatCommand(commands.lint)}\`
+- **Run locally:** \`${formatCommand(commands.run)}\``;
   } else {
     body = `## ${heading}
 
@@ -483,21 +483,22 @@ export function runLanguageStarter(log: Log, language: Language, projectPath: st
 // ============================================================================
 
 // Runs one of the project's commands in its directory; true only on exit code 0.
-export function testProjectCommand(shell: ShellRunner, log: Log, projectPath: string, command: string): boolean {
-  log.step(`Running: ${command}`);
+export function testProjectCommand(runCommand: CommandRunner, log: Log, projectPath: string, command: CommandLine): boolean {
+  const display = formatCommand(command);
+  log.step(`Running: ${display}`);
   try {
-    const result = shell(command, projectPath);
+    const result = runCommand(command, { cwd: projectPath, stdio: 'inherit' });
     if (!result.found) {
-      log.warn(`'${command}' failed: ${result.stderr}`);
+      log.warn(`'${display}' failed: ${result.stderr}`);
       return false;
     }
     if (result.code !== 0) {
-      log.warn(`'${command}' exited with code ${result.code}`);
+      log.warn(`'${display}' exited with code ${result.code}`);
       return false;
     }
     return true;
   } catch (error) {
-    log.warn(`'${command}' failed: ${error instanceof Error ? error.message : String(error)}`);
+    log.warn(`'${display}' failed: ${error instanceof Error ? error.message : String(error)}`);
     return false;
   }
 }
