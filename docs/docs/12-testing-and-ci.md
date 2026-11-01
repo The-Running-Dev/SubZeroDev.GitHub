@@ -77,7 +77,7 @@ Like the Node smoke test, it refuses to run if the scaffolder calls `tofu` or `g
 
 ## Continuous integration
 
-`.github/workflows/ci.yml` runs on pushes to `main`, on pull requests to `main`, and by hand:
+`.github/workflows/ci.yml` runs on pushes to `main`, on pull requests to `main`, every Monday at 06:17 UTC, and by hand. The weekly run catches a starter broken by a new toolchain or runner image even when nothing here has changed. GitHub emails a failed scheduled run to whoever last changed the schedule, and turns the schedule off after 60 days without activity in the repository.
 
 | Job | Runs on | Steps |
 | --- | --- | --- |
