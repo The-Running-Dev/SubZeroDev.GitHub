@@ -2,14 +2,14 @@
 // log, and a recording stand-in for tofu. Nothing here touches the real repositories/
 // folder, the real OpenTofu state, or GitHub.
 
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { delimiter, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { TestContext } from 'node:test';
 import type { Context } from '../scripts/lib/context.ts';
 import type { Log } from '../scripts/lib/log.ts';
-import { formatCommand, run, runCommand } from '../scripts/lib/process.ts';
+import { findExecutable, formatCommand, run, runCommand } from '../scripts/lib/process.ts';
 import type { CommandRunner, ProcessResult, Runner } from '../scripts/lib/process.ts';
 
 export const repositoryRoot = resolve(fileURLToPath(new URL('..', import.meta.url)));
@@ -81,13 +81,20 @@ export interface TofuCall {
   stdio: 'inherit' | undefined;
 }
 
+export interface GraphifyCall {
+  args: string[];
+  cwd: string | undefined;
+}
+
 export interface TofuMock {
   calls: TofuCall[];
+  graphifyCalls: GraphifyCall[];
   resourceChanges: unknown[];
   // Distinct resource_changes arrays, one per plan, before resourceChanges applies.
   plans: unknown[][];
   savedPlans: Map<string, string>;
-  // tofu subcommands, or 'gh', mapped to the exit code they fail with.
+  // tofu subcommands, 'gh', or graphify command lines such as 'graphify update .', mapped
+  // to the exit code they fail with.
   exitCodes: Record<string, number>;
   ghCalls: number;
   repositoryName: string;
@@ -99,10 +106,13 @@ export interface TofuMock {
 // Records every tofu call with its subcommand, arguments, and the bootstrap variable it
 // was given. `plan` saves its resource_changes as plan JSON under its -out path, so show
 // and apply record the exact saved plan; `output` returns cloneUrl as the http_clone_url
-// of repositoryName. `gh auth token` returns ghToken. Every other command really runs.
+// of repositoryName. `gh auth token` returns ghToken. graphify calls are recorded too:
+// `update .` writes graphify-out/GRAPH_REPORT.md and `hook install` appends the merge-driver
+// line to .gitattributes, as Graphify does. Every other command really runs.
 export function tofuMock(options: { repositoryName?: string; cloneUrl?: string } = {}): { mock: TofuMock; runner: Runner } {
   const mock: TofuMock = {
     calls: [],
+    graphifyCalls: [],
     resourceChanges: [],
     plans: [],
     savedPlans: new Map(),
@@ -120,6 +130,18 @@ export function tofuMock(options: { repositoryName?: string; cloneUrl?: string }
     if (command === 'gh' && args[0] === 'auth' && args[1] === 'token') {
       mock.ghCalls += 1;
       return mock.exitCodes.gh ? result(mock.exitCodes.gh) : result(0, `${mock.ghToken}\n`);
+    }
+    if (command === 'graphify') {
+      const cwd = processOptions.cwd;
+      mock.graphifyCalls.push({ args, cwd });
+      const code = mock.exitCodes[`graphify ${args.join(' ')}`] ?? 0;
+      if (code !== 0 || !cwd) return result(code);
+      if (args.join(' ') === 'update .') {
+        mkdirSync(join(cwd, 'graphify-out'), { recursive: true });
+        writeFileSync(join(cwd, 'graphify-out', 'GRAPH_REPORT.md'), '# Graph Report\n');
+      }
+      if (args.join(' ') === 'hook install') appendFileSync(join(cwd, '.gitattributes'), 'graphify-out/graph.json merge=graphify\n');
+      return result(0);
     }
     if (command !== 'tofu') return run(command, args, processOptions);
 
@@ -181,14 +203,28 @@ export function pathWithTofu(t: TestContext): string {
   mkdirSync(bin);
   writeFileSync(join(bin, 'tofu'), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
   writeFileSync(join(bin, 'tofu.cmd'), '@exit /b 0\r\n');
-  return `${bin}${delimiter}${process.env.PATH ?? process.env.Path ?? ''}`;
+  return `${bin}${delimiter}${testEnv().PATH}`;
 }
 
-// The scripts' environment without the variables they read, plus any overrides.
+// A PATH whose first folder holds a do-nothing graphify, so the scripts build the code
+// graph; the calls themselves go to tofuMock.
+export function pathWithGraphify(t: TestContext): string {
+  const bin = join(tempDir(t), 'graphify-bin');
+  mkdirSync(bin);
+  writeFileSync(join(bin, 'graphify'), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+  writeFileSync(join(bin, 'graphify.cmd'), '@exit /b 0\r\n');
+  return `${bin}${delimiter}${testEnv().PATH}`;
+}
+
+// The scripts' environment without the variables they read, plus any overrides. Graphify
+// is optional and installed on some machines only, so its folders are left off PATH; a
+// test that wants it uses pathWithGraphify.
 export function testEnv(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
   const env = { ...process.env };
   for (const name of ['TF_VAR_state_passphrase', 'TF_VAR_bootstrap_repositories', 'GITHUB_TOKEN']) delete env[name];
-  return { ...env, ...overrides };
+  const path = (env.PATH ?? env.Path ?? '').split(delimiter).filter((dir) => !findExecutable('graphify', { PATH: dir })).join(delimiter);
+  delete env.Path;
+  return { ...env, PATH: path, ...overrides };
 }
 
 export function testContext(root: string, overrides: Partial<Context> = {}): Context & { log: MemoryLog } {

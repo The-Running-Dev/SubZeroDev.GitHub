@@ -4,7 +4,8 @@
 //    .env.example, README.md, docs/architecture.md, the first ADR, CLAUDE.md and/or
 //    AGENTS.md, and the language starter (scripts/starters/<language>.ts).
 // 2. Optionally runs the build and test commands and reports the result.
-// 3. Initializes git on main and commits the scaffold.
+// 3. Builds the Graphify code graph when graphify is on PATH (and with --graphify-hook
+//    installs its rebuild hook), then initializes git on main and commits the scaffold.
 // 4. Runs new-repository.ts with the path, which creates the repository with the standard
 //    settings, pushes main, and switches the Main ruleset on.
 //
@@ -27,7 +28,7 @@ import { defaultContext } from './lib/context.ts';
 import { choiceOption, listOption, parseOptions, requiredOption } from './lib/options.ts';
 import { formatCommand } from './lib/process.ts';
 import {
-  assertCommandAvailable, assertName, createInitialCommit, createProjectStructure, initializeProjectGit,
+  assertCommandAvailable, assertName, buildCodeGraph, createInitialCommit, createProjectStructure, initializeProjectGit,
   languageCommands, languages, runLanguageStarter, testProjectCommand, writeAdr, writeAgentsInstructions,
   writeArchitecture, writeClaudeInstructions, writeEnvExample, writeGitattributes, writeGitignore, writeReadme,
 } from './lib/project.ts';
@@ -55,6 +56,8 @@ export interface ProjectOptions {
   gitUserEmail?: string;
   skipLanguageStarter?: boolean;
   skipValidation?: boolean;
+  // Also install Graphify's post-commit rebuild hook. Requires graphify on PATH.
+  graphifyHook?: boolean;
   // Scaffold and commit, but do not create the GitHub repository.
   localOnly?: boolean;
   // Scaffold and commit, then show the GitHub plan without applying it.
@@ -69,6 +72,7 @@ export function createProject(options: ProjectOptions, ctx: Context): void {
 
   // Everything that can stop the run is checked before anything is written.
   assertCommandAvailable('git', 'Install Git and make sure it is on PATH.', ctx.env);
+  if (options.graphifyHook) assertCommandAvailable('graphify', 'Install Graphify, or leave out --graphify-hook.', ctx.env);
 
   const path = resolve(options.path ?? join(dirname(root), name));
   if (existsSync(path)) throw new Error(`${path} already exists. Choose another --path, or publish it with new-repository.ts --path.`);
@@ -113,6 +117,9 @@ export function createProject(options: ProjectOptions, ctx: Context): void {
     }
   }
 
+  // After the starter, so the graph has the code; before the commit, which .gitignore keeps graphify-out/ out of.
+  buildCodeGraph(ctx.run, log, path, ctx.env, options.graphifyHook);
+
   log.step('Committing the scaffold');
   createInitialCommit(ctx.run, path);
   log.success('Initial commit created on main');
@@ -148,6 +155,7 @@ export const cliOptions = {
   'git-user-email': { type: 'string' },
   'skip-language-starter': { type: 'boolean' },
   'skip-validation': { type: 'boolean' },
+  'graphify-hook': { type: 'boolean' },
   'local-only': { type: 'boolean' },
   'plan-only': { type: 'boolean' },
 } as const;
@@ -167,6 +175,7 @@ export function run(args: string[], ctx: Context = defaultContext()): void {
     gitUserEmail: values['git-user-email'],
     skipLanguageStarter: values['skip-language-starter'],
     skipValidation: values['skip-validation'],
+    graphifyHook: values['graphify-hook'],
     localOnly: values['local-only'],
     planOnly: values['plan-only'],
   }, ctx);
