@@ -14,6 +14,7 @@ None of the tests touch GitHub, a token or the real state. The script tests run 
 | `npm run typecheck` | `tsc --noEmit` over the scripts and tests. | Node.js |
 | `npm run lint` | oxlint over the scripts and tests, with type information, failing on any warning. | Node.js |
 | `npm test` | `node --test "tests/*.test.ts"`: the unit and script tests. | Node.js, Git, PowerShell 7 for the docs gate tests |
+| `npm run test:coverage` | `npm test` with Node.js coverage of `scripts/`, failing below 98% of lines, 88% of branches or 90% of functions. | As `npm test` |
 | `npm run test:tofu` | `tests/tofu.integration.ts`: the OpenTofu configuration and the definitions the scripts write. Skipped where `tofu` is not installed. | OpenTofu |
 | `npm run smoke` | `tests/node-smoke.ts`: a real Node.js project, built, tested, linted and started. | Node.js, Git, npm registry access |
 | `npm run smoke:starter -- <language>` | `tests/starter-smoke.ts`: the same for `csharp`, `rust`, `java` or `go`. | Node.js, Git, the language's toolchain and registry access |
@@ -84,7 +85,7 @@ Like the Node smoke test, it refuses to run if the scaffolder calls `tofu` or `g
 
 | Job | Runs on | Steps |
 | --- | --- | --- |
-| `Test` | Ubuntu, Windows and macOS × Node.js 22 and 24 | `npm ci`, `npm run typecheck`, `npm run lint`, `npm test` |
+| `Test` | Ubuntu, Windows and macOS × Node.js 22 and 24 | `npm ci`, `npm run typecheck`, `npm run lint`, `npm test`; Ubuntu with Node.js 24 runs `npm run test:coverage` instead |
 | `Node smoke` | Ubuntu, Windows and macOS × Node.js 22 and 24 | `npm ci`, `npm run smoke` |
 | `Starter smoke` | Ubuntu, Windows and macOS × `csharp`, `rust`, `java` and `go`, Node.js 24 | The toolchain from `setup-dotnet`, `setup-java`, `setup-go` or the runner's rustup, a `~/.nuget/packages` cache for C# keyed on `scripts/starters/versions/CSharpStarter.csproj` and a `~/.m2/repository` cache for Java keyed on `scripts/starters/versions/pom.xml`, then `npm ci`, `npm run smoke:starter -- <language>` |
 | `OpenTofu` | Ubuntu, Node.js 24, OpenTofu from `opentofu/setup-opentofu` | `npm ci`, `npm run test:tofu` |
