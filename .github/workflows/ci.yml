@@ -89,6 +89,15 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
+      # As with Maven below, the starter's project files live outside the checkout, so setup-dotnet's
+      # cache has nothing to key on. The package versions live in csharp.ts.
+      - if: matrix.language == 'csharp'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('scripts/starters/csharp.ts') }}
+          restore-keys: nuget-${{ runner.os }}-
+
       # The runner images include Maven; setup-java pins the JDK the starter targets.
       - if: matrix.language == 'java'
         uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
