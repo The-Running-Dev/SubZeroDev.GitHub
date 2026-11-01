@@ -10,6 +10,10 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # The starters build against moving toolchains (Go stable, the runner's Rust, .NET 10.0.x,
+  # the runner images), so a weekly run catches an upstream break before a new project does.
+  schedule:
+    - cron: '17 6 * * 1'
   workflow_dispatch:
 
 permissions: {}
