@@ -37,6 +37,16 @@ export TF_VAR_state_passphrase='<your passphrase>'
 
 Keep the passphrase somewhere safe. Without it the state cannot be read, and OpenTofu no longer knows which repositories it manages.
 
+### State database
+
+The state lives in PostgreSQL, through OpenTofu's `pg` backend, so the [weekly drift check](12-testing-and-ci.md#drift-detection) can read it. The backend takes its connection string from `PG_CONN_STR`; the libpq variables (`PGHOST`, `PGUSER`, `PGPASSWORD` and the rest) work too.
+
+```bash
+export PG_CONN_STR='postgres://<user>:<password>@<host>/<database>?sslmode=require'
+```
+
+The state is encrypted before it leaves your machine, so the database only ever holds ciphertext. OpenTofu keeps it in the `terraform_remote_state` schema, which it creates on the first `tofu init`, and takes a PostgreSQL advisory lock for each command that writes state. The database must be reachable from GitHub's runners for the drift check to work.
+
 ### GitHub token
 
 The `integrations/github` provider reads its token from `GITHUB_TOKEN`. The scripts fill it in from `gh auth token` when it is not already set, and they pass it to `tofu` only, so your shell's environment is left unchanged. For a `tofu` command you run yourself, export it first:
@@ -55,7 +65,7 @@ tofu init
 tofu plan
 ```
 
-The state is local: it is `terraform.tfstate` in the repository root, next to `terraform.tfstate.backup`. Git ignores both, and every `*.tfplan` file. Back up the state together with the passphrase. A plan with no changes means every repository on GitHub matches its definition.
+`tofu init` connects to the state database. A plan with no changes means every repository on GitHub matches its definition. Git ignores every `*.tfplan` file, and any local `terraform.tfstate` left from before the move to PostgreSQL; see [Move the state to PostgreSQL](10-operations.md#move-the-state-to-postgresql). Back up the database together with the passphrase.
 
 ## Next steps
 

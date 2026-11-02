@@ -1,6 +1,6 @@
 ---
 title: OpenTofu configuration
-description: The root module, its variables and outputs, the provider, and state and plan encryption.
+description: The root module, its variables and outputs, the provider, the backend, and state and plan encryption.
 ---
 
 # OpenTofu configuration
@@ -9,7 +9,7 @@ The configuration is small. The root module turns each definition file into one 
 
 ```text
 .
-├── versions.tf            OpenTofu and provider versions, state and plan encryption
+├── versions.tf            OpenTofu and provider versions, the pg backend, state and plan encryption
 ├── providers.tf           The github provider, owned by var.owner
 ├── variables.tf           owner, state_passphrase, bootstrap_repositories
 ├── main.tf                One module instance per repositories/*.yaml
@@ -89,4 +89,8 @@ The provider reads its token from `GITHUB_TOKEN`. No token is stored in the conf
 - **Method.** `aes_gcm`.
 - **Enforced.** OpenTofu refuses to read or write an unencrypted state or plan.
 
-The backend is the default local one, so the state is `terraform.tfstate` in the repository root. Git ignores it, together with `.terraform/`, `*.tfstate.*` and `*.tfplan`. Keep a backup of the state and the passphrase together; either one alone is useless.
+## Backend
+
+The backend is `pg`, declared empty in `versions.tf`. Its connection string comes from `PG_CONN_STR` or the libpq `PG*` variables, so no address or password is in the configuration. The state is encrypted before it is written, so the database holds only ciphertext. Keep a backup of the database and the passphrase together; either one alone is useless. See [State database](02-getting-started.md#state-database).
+
+Git ignores `.terraform/`, `*.tfstate`, `*.tfstate.*` and `*.tfplan`, which covers any local state left from before the move to PostgreSQL.
