@@ -4,7 +4,7 @@
   "description": "The devDependencies the Node.js starter (node.ts) writes into a new project's package.json. Nothing installs this file: Dependabot updates it, and the Node smoke test checks each update.",
   "devDependencies": {
     "@types/node": "^22.0.0",
-    "typescript": "^5.9.0",
+    "typescript": "^7.0.2",
     "@eslint/js": "^10.0.0",
     "eslint": "^10.0.0",
     "globals": "^16.0.0",
