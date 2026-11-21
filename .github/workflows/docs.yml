@@ -19,6 +19,6 @@ jobs:
       contents: read
       pages: write
       id-token: write
-    uses: The-Running-Dev/GitHub-ActionTemplates/.github/workflows/docs.yml@v1
+    uses: The-Running-Dev/GitHub-ActionTemplates/.github/workflows/docs.yml@v2
     with:
       pre-build: ./build/Test-Documentation.ps1
